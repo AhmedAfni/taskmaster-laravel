@@ -12,10 +12,15 @@ return new class extends Migration
     public function up(): void
     {
         Schema::create('tasks', function (Blueprint $table) {
-            $table->id();   // Auto-incrementing ID (e.g., 1, 2, 3)
-            $table->string('name');  // Task name (text)
-            $table->boolean('completed')->default(false);   // true/false value (initially false)
-            $table->timestamps();   // Two fields: created_at and updated_at
+            $table->id();   // Auto-incrementing ID
+            $table->string('name');  // Task content
+            $table->boolean('completed')->default(false);   // Completed or not
+            $table->unsignedBigInteger('user_id'); // Link to user
+
+            // Foreign key constraint
+            $table->foreign('user_id')->references('id')->on('users')->onDelete('cascade');
+
+            $table->timestamps();   // created_at, updated_at
         });
     }
 
