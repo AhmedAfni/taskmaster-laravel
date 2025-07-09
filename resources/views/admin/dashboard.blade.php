@@ -52,8 +52,8 @@
             <div class="card-body">
                 <form method="POST" action="{{ route('admin.tasks.assign') }}">
                     @csrf
-                    <div class="row g-3 align-items-end">
-                        <div class="col-md-3">
+                    <div class="row g-3">
+                        <div class="col-md-4">
                             <label for="user_id" class="form-label small fw-semibold">Select User</label>
                             <select name="user_id" id="user_id" class="form-select" required>
                                 <option value="" disabled selected>Choose a user...</option>
@@ -62,19 +62,19 @@
                                 @endforeach
                             </select>
                         </div>
-                        <div class="col-md-3">
+                        <div class="col-md-4">
                             <label for="task_name" class="form-label small fw-semibold">Task Title</label>
                             <input type="text" name="task_name" id="task_name" class="form-control"
                                 placeholder="e.g. Prepare Report" required>
                         </div>
                         <div class="col-md-4">
                             <label for="task_description" class="form-label small fw-semibold">Description</label>
-                            <input type="text" name="task_description" id="task_description" class="form-control"
-                                placeholder="Task details..." required>
+                            <textarea name="task_description" id="task_description" class="form-control" rows="3"
+                                placeholder="Task details..." required></textarea>
                         </div>
-                        <div class="col-md-2">
-                            <button type="submit" class="btn btn-dark w-100">
-                                <i class="bi bi-send"></i> Assign
+                        <div class="col-12 text-end">
+                            <button type="submit" class="btn btn-dark">
+                                <i class="bi bi-send me-1"></i> Assign Task
                             </button>
                         </div>
                     </div>
@@ -207,7 +207,7 @@
                     <div class="mb-0">
                         <label class="form-label fw-bold">Description</label>
                         <div class="border rounded p-3 bg-light" id="viewTaskDescription"
-                            style="min-height: 100px; white-space: pre-wrap; line-height: 1.5;"></div>
+                            style="min-height: 100px; white-space: normal; line-height: 1.5;"></div>
                     </div>
                 </div>
                 <div class="modal-footer">
@@ -313,6 +313,9 @@
     <!-- DataTables Scripts -->
     <script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
     <script src="https://cdn.datatables.net/1.13.6/js/dataTables.bootstrap5.min.js"></script>
+    <!-- TinyMCE -->
+    <script src="https://cdn.tiny.cloud/1/96s1bjh0dbr79aoe5h20vpcele61qmaimpdu7rgotiln64xm/tinymce/6/tinymce.min.js"
+        referrerpolicy="origin"></script>
 
     <script>
         $(document).ready(function() {
@@ -349,6 +352,36 @@
                         });
                 }).draw();
             }
+
+            // Initialize TinyMCE for Assign Task form
+            tinymce.init({
+                selector: '#task_description',
+                height: 100,
+                menubar: false,
+                plugins: ['lists', 'link'],
+                toolbar: 'undo redo | bold italic underline | bullist numlist | link | removeformat',
+                content_style: 'body { font-family:Helvetica,Arial,sans-serif; font-size:14px; line-height:1.6; }',
+                setup: function(editor) {
+                    editor.on('change', function() {
+                        editor.save();
+                    });
+                }
+            });
+
+            // Initialize TinyMCE for Edit Task Modal
+            tinymce.init({
+                selector: '#editTaskDescription',
+                height: 150,
+                menubar: false,
+                plugins: ['lists', 'link'],
+                toolbar: 'undo redo | bold italic underline | bullist numlist | link | removeformat',
+                content_style: 'body { font-family:Helvetica,Arial,sans-serif; font-size:14px; line-height:1.6; }',
+                setup: function(editor) {
+                    editor.on('change', function() {
+                        editor.save();
+                    });
+                }
+            });
         });
     </script>
 
@@ -426,7 +459,11 @@
                         minlength: 3
                     },
                     task_description: {
-                        required: true,
+                        required: function() {
+                            return tinymce.get('task_description') ?
+                                tinymce.get('task_description').getContent().trim() === '' :
+                                $('#task_description').val().trim() === '';
+                        },
                         minlength: 5
                     }
                 },
@@ -448,6 +485,13 @@
                 },
                 unhighlight: function(element) {
                     $(element).removeClass('is-invalid');
+                },
+                submitHandler: function(form) {
+                    // Ensure TinyMCE content is saved before submission
+                    if (tinymce.get('task_description')) {
+                        tinymce.get('task_description').save();
+                    }
+                    form.submit();
                 }
             });
 
@@ -501,7 +545,14 @@
                 const form = editTaskModal.querySelector('#editTaskForm');
 
                 nameInput.value = taskName;
-                descriptionInput.value = taskDescription;
+
+                // Set TinyMCE content if initialized, otherwise set textarea value
+                if (tinymce.get('editTaskDescription')) {
+                    tinymce.get('editTaskDescription').setContent(taskDescription);
+                } else {
+                    descriptionInput.value = taskDescription;
+                }
+
                 form.action = `/admin/tasks/${taskId}/edit`;
 
                 // Apply validation when modal is shown
@@ -512,7 +563,12 @@
                             minlength: 3
                         },
                         description: {
-                            required: true,
+                            required: function() {
+                                return tinymce.get('editTaskDescription') ?
+                                    tinymce.get('editTaskDescription').getContent().trim() ===
+                                    '' :
+                                    $('#editTaskDescription').val().trim() === '';
+                            },
                             minlength: 5
                         }
                     },
@@ -533,6 +589,13 @@
                     },
                     unhighlight: function(element) {
                         $(element).removeClass('is-invalid');
+                    },
+                    submitHandler: function(form) {
+                        // Ensure TinyMCE content is saved before submission
+                        if (tinymce.get('editTaskDescription')) {
+                            tinymce.get('editTaskDescription').save();
+                        }
+                        form.submit();
                     }
                 });
             });
@@ -548,7 +611,7 @@
                 const descriptionElement = viewTaskModal.querySelector('#viewTaskDescription');
 
                 nameElement.textContent = taskName;
-                descriptionElement.textContent = taskDescription;
+                descriptionElement.innerHTML = taskDescription; // Use innerHTML to display HTML content
             });
         });
     </script>

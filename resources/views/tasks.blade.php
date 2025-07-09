@@ -13,6 +13,8 @@
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/jquery-validation@1.19.5/dist/jquery.validate.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script src="https://cdn.tiny.cloud/1/96s1bjh0dbr79aoe5h20vpcele61qmaimpdu7rgotiln64xm/tinymce/6/tinymce.min.js"
+        referrerpolicy="origin"></script>
 
     <style>
         .completed {
@@ -33,6 +35,102 @@
 
         input.error {
             border-color: red;
+        }
+
+        /* Rich text content styling */
+        #viewTaskDescription {
+            font-family: Arial, sans-serif;
+        }
+
+        #viewTaskDescription h1,
+        #viewTaskDescription h2,
+        #viewTaskDescription h3 {
+            margin-top: 0;
+            margin-bottom: 0.5rem;
+        }
+
+        #viewTaskDescription p {
+            margin-bottom: 0.5rem;
+        }
+
+        #viewTaskDescription ul,
+        #viewTaskDescription ol {
+            margin-bottom: 0.5rem;
+            padding-left: 1.5rem;
+        }
+
+        #viewTaskDescription strong {
+            font-weight: bold;
+        }
+
+        #viewTaskDescription em {
+            font-style: italic;
+        }
+
+        /* TinyMCE container styling */
+        .tox-tinymce {
+            border-radius: 0.375rem !important;
+        }
+
+        /* Enhanced form styling */
+        .form-control:focus {
+            border-color: #0d6efd;
+            box-shadow: 0 0 0 0.2rem rgba(13, 110, 253, 0.25);
+        }
+
+        .form-control-lg:focus {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(13, 110, 253, 0.15);
+        }
+
+        /* Modal enhancements */
+        .modal-content {
+            border-radius: 1rem;
+            overflow: hidden;
+        }
+
+        .modal-header {
+            border-bottom: none;
+            padding: 1.5rem;
+        }
+
+        .modal-body {
+            padding: 1.5rem;
+        }
+
+        .modal-footer {
+            border-top: none;
+            padding: 1.5rem;
+        }
+
+        /* Alert styling */
+        .alert-light {
+            background-color: rgba(13, 110, 253, 0.05);
+            border-color: rgba(13, 110, 253, 0.2);
+        }
+
+        /* Character count styling */
+        #charCount {
+            font-size: 0.875rem;
+            transition: color 0.3s ease;
+        }
+
+        /* Button animations */
+        .btn {
+            transition: all 0.3s ease;
+        }
+
+        .btn:hover {
+            transform: translateY(-1px);
+        }
+
+        /* Tips section styling */
+        .alert h6 {
+            color: #0d6efd;
+        }
+
+        .alert ul li {
+            margin-bottom: 0.25rem;
         }
     </style>
 </head>
@@ -143,7 +241,7 @@
 
     <!-- Add Task Modal -->
     <div class="modal fade" id="addTaskModal" tabindex="-1">
-        <div class="modal-dialog">
+        <div class="modal-dialog modal-lg">
             <form id="addTaskForm" class="modal-content">
                 <div class="modal-header">
                     <h5 class="modal-title">Add Task</h5>
@@ -221,8 +319,8 @@
                         </div>
                         <div class="mb-3">
                             <label class="form-label fw-bold">Description</label>
-                            <p class="form-control-plaintext border rounded p-2 bg-light" id="viewTaskDescription"
-                                style="min-height: 80px; white-space: pre-wrap;"></p>
+                            <div class="border rounded p-3 bg-light" id="viewTaskDescription"
+                                style="min-height: 80px; white-space: normal; line-height: 1.5;"></div>
                             <textarea class="form-control d-none" id="editViewTaskDescription" rows="4" required></textarea>
                         </div>
                     </div>
@@ -246,12 +344,51 @@
     </div>
 
     <!-- JS -->
-    <<script>
+    <script>
         $(function() {
             const token = $('meta[name="csrf-token"]').attr('content');
             const addModal = new bootstrap.Modal(document.getElementById('addTaskModal'));
             const editModal = new bootstrap.Modal(document.getElementById('editTaskModal'));
             const viewModal = new bootstrap.Modal(document.getElementById('viewTaskModal'));
+
+            // Initialize TinyMCE for Add Task Modal
+            tinymce.init({
+                selector: '#taskDescription',
+                height: 300,
+                menubar: false,
+                plugins: [
+                    'lists', 'link', 'autolink'
+                ],
+                toolbar: 'undo redo | bold italic underline | bullist numlist | link | removeformat',
+                content_style: 'body { font-family:Helvetica,Arial,sans-serif; font-size:14px; line-height:1.6; }',
+                setup: function(editor) {
+                    editor.on('change', function() {
+                        editor.save();
+                    });
+                }
+            });
+
+            // Initialize TinyMCE for Edit Task Modal
+            tinymce.init({
+                selector: '#editTaskDescription',
+                height: 200,
+                menubar: false,
+                plugins: [
+                    'advlist', 'autolink', 'lists', 'link', 'charmap', 'preview',
+                    'anchor', 'searchreplace', 'visualblocks', 'code', 'fullscreen',
+                    'insertdatetime', 'table', 'wordcount'
+                ],
+                toolbar: 'undo redo | blocks | ' +
+                    'bold italic forecolor | alignleft aligncenter ' +
+                    'alignright alignjustify | bullist numlist outdent indent | ' +
+                    'removeformat | help',
+                content_style: 'body { font-family:Helvetica,Arial,sans-serif; font-size:14px }',
+                setup: function(editor) {
+                    editor.on('change', function() {
+                        editor.save();
+                    });
+                }
+            });
 
             function formatDate(dateStr) {
                 const d = new Date(dateStr);
@@ -277,7 +414,17 @@
                 submitHandler: function(form, e) {
                     e.preventDefault();
                     const name = $('#taskName').val().trim();
-                    const description = $('#taskDescription').val().trim();
+                    const description = tinymce.get('taskDescription').getContent();
+
+                    if (!description.trim()) {
+                        Swal.fire({
+                            icon: 'error',
+                            title: 'Please enter a description',
+                            timer: 2000,
+                            showConfirmButton: false
+                        });
+                        return;
+                    }
 
                     $.post("{{ route('tasks.store') }}", {
                         name,
@@ -316,7 +463,7 @@
                             </li>
                         `);
                             $('#taskName').val('');
-                            $('#taskDescription').val('');
+                            tinymce.get('taskDescription').setContent('');
                             addModal.hide();
 
                             // Update task counters
@@ -337,7 +484,7 @@
                 const isCompleted = taskItem.find('.completed').length > 0;
 
                 $('#viewTaskName').text(name);
-                $('#viewTaskDescription').text(description);
+                $('#viewTaskDescription').html(description);
 
                 // Store task data for edit functionality
                 $('#viewEditBtn').data('id', id).data('name', name).data('description', description);
@@ -358,8 +505,40 @@
                 $('#viewTaskName').addClass('d-none');
                 $('#viewTaskDescription').addClass('d-none');
                 $('#editViewTaskName').removeClass('d-none').val($(this).data('name'));
-                $('#editViewTaskDescription').removeClass('d-none').val($(this).data('description'));
-                
+                $('#editViewTaskDescription').removeClass('d-none');
+
+                // Initialize TinyMCE for the edit textarea if not already initialized
+                if (!tinymce.get('editViewTaskDescription')) {
+                    tinymce.init({
+                        selector: '#editViewTaskDescription',
+                        height: 200,
+                        menubar: false,
+                        plugins: [
+                            'advlist', 'autolink', 'lists', 'link', 'charmap', 'preview',
+                            'anchor', 'searchreplace', 'visualblocks', 'code', 'fullscreen',
+                            'insertdatetime', 'table', 'wordcount'
+                        ],
+                        toolbar: 'undo redo | blocks | ' +
+                            'bold italic forecolor | alignleft aligncenter ' +
+                            'alignright alignjustify | bullist numlist outdent indent | ' +
+                            'removeformat | help',
+                        content_style: 'body { font-family:Helvetica,Arial,sans-serif; font-size:14px }',
+                        setup: function(editor) {
+                            editor.on('init', function() {
+                                // Set content after initialization
+                                editor.setContent($('#viewEditBtn').data(
+                                    'description'));
+                            });
+                            editor.on('change', function() {
+                                editor.save();
+                            });
+                        }
+                    });
+                } else {
+                    // Set TinyMCE content if already initialized
+                    tinymce.get('editViewTaskDescription').setContent($(this).data('description'));
+                }
+
                 // Show/hide buttons
                 $('#viewEditBtn').addClass('d-none');
                 $('#cancelEditBtn').removeClass('d-none');
@@ -373,7 +552,12 @@
                 $('#viewTaskDescription').removeClass('d-none');
                 $('#editViewTaskName').addClass('d-none');
                 $('#editViewTaskDescription').addClass('d-none');
-                
+
+                // Remove TinyMCE instance to clean up
+                if (tinymce.get('editViewTaskDescription')) {
+                    tinymce.remove('#editViewTaskDescription');
+                }
+
                 // Show/hide buttons
                 $('#viewEditBtn').removeClass('d-none');
                 $('#cancelEditBtn').addClass('d-none');
@@ -383,12 +567,14 @@
             // Save Edit in View Modal
             $('#viewEditForm').on('submit', function(e) {
                 e.preventDefault();
-                
+
                 const id = $('#viewEditBtn').data('id');
                 const name = $('#editViewTaskName').val().trim();
-                const description = $('#editViewTaskDescription').val().trim();
+                const description = tinymce.get('editViewTaskDescription') ?
+                    tinymce.get('editViewTaskDescription').getContent() :
+                    $('#editViewTaskDescription').val();
 
-                if (!name || !description) {
+                if (!name || !description.trim()) {
                     Swal.fire({
                         icon: 'error',
                         title: 'Please fill in all fields',
@@ -413,20 +599,27 @@
 
                         // Update the task in the list
                         const taskItem = $(`#task-${id}`);
-                        taskItem.find('.task-text').text(name).data('name', name).data('description', res.description);
-                        taskItem.find('.view-btn').data('name', name).data('description', res.description);
+                        taskItem.find('.task-text').text(name).data('name', name).data(
+                            'description', res.description);
+                        taskItem.find('.view-btn').data('name', name).data('description', res
+                            .description);
 
                         // Update the view modal display
                         $('#viewTaskName').text(name);
-                        $('#viewTaskDescription').text(res.description);
+                        $('#viewTaskDescription').html(res.description);
                         $('#viewEditBtn').data('name', name).data('description', res.description);
+
+                        // Remove TinyMCE instance to clean up
+                        if (tinymce.get('editViewTaskDescription')) {
+                            tinymce.remove('#editViewTaskDescription');
+                        }
 
                         // Switch back to view mode
                         $('#viewTaskName').removeClass('d-none');
                         $('#viewTaskDescription').removeClass('d-none');
                         $('#editViewTaskName').addClass('d-none');
                         $('#editViewTaskDescription').addClass('d-none');
-                        
+
                         // Show/hide buttons
                         $('#viewEditBtn').removeClass('d-none');
                         $('#cancelEditBtn').addClass('d-none');
