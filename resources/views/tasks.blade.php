@@ -192,26 +192,20 @@
                         minlength: 3
                     }
                 },
-                messages: {
-                    name: {
-                        required: "Please enter a task name.",
-                        minlength: "Task must be at least 3 characters long."
-                    }
-                },
                 submitHandler: function(form) {
                     const name = $('#taskName').val().trim();
-                    $.post('tasks', {
+                    $.post("{{ route('tasks.store') }}", {
                         name,
                         _token: token
                     }, function(res) {
                         if (res.success) {
                             Swal.fire({
-                                icon: 'success',
-                                title: 'Task Added!',
-                                text: 'Your task has been added successfully.',
-                                timer: 1500,
-                                showConfirmButton: false
-                            }).then(() => location.reload());
+                                    icon: 'success',
+                                    title: 'Task Added!',
+                                    timer: 1200,
+                                    showConfirmButton: false
+                                })
+                                .then(() => location.reload());
                         }
                     });
                 }
@@ -225,28 +219,22 @@
                         minlength: 3
                     }
                 },
-                messages: {
-                    editTaskName: {
-                        required: "Please enter a task name.",
-                        minlength: "Task must be at least 3 characters long."
-                    }
-                },
                 submitHandler: function() {
                     const id = $('#editTaskId').val();
                     const name = $('#editTaskName').val().trim();
 
-                    $.post(`/tasks/${id}/edit`, {
+                    $.post(`{{ url('tasks') }}/${id}/edit`, {
                         _token: token,
                         name
                     }, function(res) {
                         if (res.success) {
                             Swal.fire({
-                                icon: 'success',
-                                title: 'Task Updated!',
-                                text: 'Your task has been updated.',
-                                timer: 1500,
-                                showConfirmButton: false
-                            }).then(() => location.reload());
+                                    icon: 'success',
+                                    title: 'Task Updated!',
+                                    timer: 1200,
+                                    showConfirmButton: false
+                                })
+                                .then(() => location.reload());
                         }
                     });
                 }
@@ -255,17 +243,17 @@
             // Complete / Undo Task
             $(document).on('click', '.complete-btn', function() {
                 const id = $(this).data('id');
-                $.post(`/tasks/${id}/complete`, {
+                $.post(`{{ url('tasks') }}/${id}/complete`, {
                     _token: token
                 }, function(res) {
                     if (res.success) {
                         Swal.fire({
-                            icon: 'success',
-                            title: res.completed ? 'Task Completed!' :
-                                'Task Marked Incomplete!',
-                            timer: 1200,
-                            showConfirmButton: false
-                        }).then(() => location.reload());
+                                icon: 'success',
+                                title: res.completed ? 'Completed!' : 'Marked Incomplete!',
+                                timer: 1000,
+                                showConfirmButton: false
+                            })
+                            .then(() => location.reload());
                     }
                 });
             });
@@ -276,7 +264,7 @@
 
                 Swal.fire({
                     title: 'Are you sure?',
-                    text: "This task will be permanently deleted!",
+                    text: 'This task will be permanently deleted!',
                     icon: 'warning',
                     showCancelButton: true,
                     confirmButtonColor: '#d33',
@@ -284,25 +272,24 @@
                     confirmButtonText: 'Yes, delete it!'
                 }).then((result) => {
                     if (result.isConfirmed) {
-                        $.post(`/tasks/${id}/delete`, {
+                        $.post(`{{ url('tasks') }}/${id}/delete`, {
                             _token: token
                         }, function(res) {
                             if (res.success) {
                                 Swal.fire({
                                     icon: 'success',
                                     title: 'Deleted!',
-                                    text: 'Your task has been removed.',
-                                    timer: 1500,
+                                    timer: 1000,
                                     showConfirmButton: false
                                 });
-                                $('#task-' + id).remove();
+                                $(`#task-${id}`).remove();
                             }
                         });
                     }
                 });
             });
 
-            // Edit Button Trigger
+            // Edit Button
             $(document).on('click', '.edit-btn', function() {
                 const id = $(this).data('id');
                 const name = $(this).data('name');
@@ -311,7 +298,7 @@
                 editModal.show();
             });
 
-            // Logout confirmation
+            // Logout
             $('#logoutBtn').on('click', function(e) {
                 e.preventDefault();
                 Swal.fire({
@@ -319,8 +306,6 @@
                     text: 'Are you sure you want to log out?',
                     icon: 'question',
                     showCancelButton: true,
-                    confirmButtonColor: '#3085d6',
-                    cancelButtonColor: '#6c757d',
                     confirmButtonText: 'Yes, logout'
                 }).then((result) => {
                     if (result.isConfirmed) {
@@ -330,6 +315,8 @@
             });
         });
     </script>
+
+
 
 </body>
 
