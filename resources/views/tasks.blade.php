@@ -312,7 +312,10 @@
                         });
 
                         const taskItem = $(`#task-${id}`);
-                        const taskName = taskItem.find('.task-text').text();
+                        const taskName = taskItem.find('.task-text').length ?
+                            taskItem.find('.task-text').data('name') :
+                            taskItem.find('p.completed').text().trim();
+
                         const timestamp = taskItem.find('small').html();
 
                         if (res.completed) {

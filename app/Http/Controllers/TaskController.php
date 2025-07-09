@@ -12,7 +12,6 @@ class TaskController extends Controller
     {
         $userId = Auth::id();
 
-        // Change is here 👇
         $tasks = Task::where('user_id', $userId)->oldest()->get();
 
         $totalTasks = $tasks->count();
@@ -34,7 +33,16 @@ class TaskController extends Controller
         ]);
 
         if ($request->expectsJson()) {
-            return response()->json(['success' => true, 'task' => $task]);
+            return response()->json([
+                'success' => true,
+                'task' => [
+                    'id' => $task->id,
+                    'name' => $task->name,
+                    'created_at' => $task->created_at->format('Y-m-d H:i:s'),
+                    'completed' => $task->completed,
+                    'completed_at' => $task->completed_at
+                ]
+            ]);
         }
 
         return redirect('/');
@@ -52,7 +60,12 @@ class TaskController extends Controller
         ]);
 
         if ($request->expectsJson()) {
-            return response()->json(['success' => true, 'completed' => $isNowCompleted]);
+            return response()->json([
+                'success' => true,
+                'completed' => $isNowCompleted,
+                'created_at' => $task->created_at->format('Y-m-d H:i:s'),
+                'completed_at' => $task->completed_at ? $task->completed_at->format('Y-m-d H:i:s') : null
+            ]);
         }
 
         return redirect('/');
@@ -80,7 +93,10 @@ class TaskController extends Controller
         $task->update(['name' => $request->name]);
 
         if ($request->expectsJson()) {
-            return response()->json(['success' => true, 'name' => $task->name]);
+            return response()->json([
+                'success' => true,
+                'name' => $task->name
+            ]);
         }
 
         return redirect('/');
