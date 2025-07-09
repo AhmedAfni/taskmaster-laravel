@@ -226,7 +226,7 @@
 
     <!-- Edit Task Modal -->
     <div class="modal fade" id="editTaskModal" tabindex="-1" aria-labelledby="editTaskModalLabel" aria-hidden="true">
-        <div class="modal-dialog">
+        <div class="modal-dialog modal-lg">
             <form method="POST" id="editTaskForm">
                 @csrf
                 <div class="modal-content">
@@ -241,7 +241,7 @@
                         </div>
                         <div class="mb-3">
                             <label for="editTaskDescription" class="form-label">Description</label>
-                            <textarea name="description" id="editTaskDescription" class="form-control" rows="3"
+                            <textarea name="description" id="editTaskDescription" class="form-control" rows="4"
                                 placeholder="Enter task description..." required></textarea>
                         </div>
                     </div>
@@ -306,6 +306,34 @@
             padding: 6px 12px;
             border: 1px solid #ced4da;
             border-radius: 0.375rem;
+        }
+
+        /* Loading spinner styles */
+        .spinner-border-sm {
+            width: 1rem;
+            height: 1rem;
+        }
+
+        /* Button loading state */
+        .btn:disabled {
+            opacity: 0.65;
+        }
+
+        /* AJAX loading overlay */
+        .loading-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.1);
+            z-index: 9999;
+            display: none;
+        }
+
+        /* Table row fade effect */
+        .table tbody tr {
+            transition: opacity 0.3s ease;
         }
     </style>
 @endpush
@@ -376,7 +404,7 @@
             // Initialize TinyMCE for Edit Task Modal
             tinymce.init({
                 selector: '#editTaskDescription',
-                height: 150,
+                height: 200,
                 menubar: false,
                 plugins: ['lists', 'link'],
                 toolbar: 'undo redo | bold italic underline | bullist numlist | link | removeformat',
@@ -384,6 +412,9 @@
                 setup: function(editor) {
                     editor.on('change', function() {
                         editor.save();
+                    });
+                    editor.on('init', function() {
+                        // Editor is ready for content
                     });
                 }
             });
@@ -428,11 +459,12 @@
                 });
             @endif
 
-            // Delete Task Confirmation
+            // Delete Task Confirmation with AJAX
             $('.delete-task-btn').on('click', function(e) {
                 e.preventDefault();
 
                 const form = $(this).closest('form');
+                const taskRow = $(this).closest('tr');
 
                 Swal.fire({
                     title: 'Are you sure?',
@@ -445,13 +477,98 @@
                     reverseButtons: true
                 }).then((result) => {
                     if (result.isConfirmed) {
-                        form.submit();
+                        // AJAX deletion
+                        $.ajax({
+                            url: form.attr('action'),
+                            method: 'POST',
+                            data: form.serialize(),
+                            success: function(response) {
+                                Swal.fire({
+                                    icon: 'success',
+                                    title: 'Deleted!',
+                                    text: 'Task has been deleted successfully',
+                                    confirmButtonColor: '#198754',
+                                    timer: 2000,
+                                    showConfirmButton: false
+                                });
+
+                                // Remove row from table or reload
+                                if ($.fn.DataTable.isDataTable('#userTasksTable')) {
+                                    $('#userTasksTable').DataTable().row(taskRow)
+                                        .remove().draw();
+                                } else {
+                                    taskRow.fadeOut(300, function() {
+                                        $(this).remove();
+                                    });
+                                }
+                            },
+                            error: function(xhr) {
+                                let errorMessage = 'Failed to delete task';
+                                if (xhr.responseJSON && xhr.responseJSON.message) {
+                                    errorMessage = xhr.responseJSON.message;
+                                }
+
+                                Swal.fire({
+                                    icon: 'error',
+                                    title: 'Error!',
+                                    text: errorMessage,
+                                    confirmButtonColor: '#dc3545'
+                                });
+                            }
+                        });
                     }
                 });
             });
 
+            // Complete/Undo Task with AJAX
+            $(document).on('submit', 'form[action*="/complete"], form[action*="/undo"]', function(e) {
+                e.preventDefault();
 
-            // Assign Task Form Validation
+                const form = $(this);
+                const submitBtn = form.find('button[type="submit"]');
+                const taskRow = form.closest('tr');
+                const isCompleting = form.attr('action').includes('/complete');
+
+                // AJAX submission
+                $.ajax({
+                    url: form.attr('action'),
+                    method: 'POST',
+                    data: form.serialize(),
+                    success: function(response) {
+                        const action = isCompleting ? 'completed' : 'marked as pending';
+
+                        Swal.fire({
+                            icon: 'success',
+                            title: 'Success!',
+                            text: `Task ${action} successfully`,
+                            confirmButtonColor: '#198754',
+                            timer: 2000,
+                            showConfirmButton: false
+                        });
+
+                        // Reload page to reflect status changes
+                        location.reload();
+                    },
+                    error: function(xhr) {
+                        let errorMessage = 'An error occurred';
+                        if (xhr.responseJSON && xhr.responseJSON.message) {
+                            errorMessage = xhr.responseJSON.message;
+                        }
+
+                        Swal.fire({
+                            icon: 'error',
+                            title: 'Error!',
+                            text: errorMessage,
+                            confirmButtonColor: '#dc3545'
+                        });
+                    }
+                });
+
+                return false;
+            });
+
+
+            // Assign Task Form Validation with AJAX
             $('form[action="{{ route('admin.tasks.assign') }}"]').attr('id', 'assignTaskForm');
 
             $('#assignTaskForm').validate({
@@ -496,11 +613,66 @@
                     if (tinymce.get('task_description')) {
                         tinymce.get('task_description').save();
                     }
-                    form.submit();
+
+                    // AJAX submission
+                    const formData = new FormData(form);
+                    const submitBtn = $(form).find('button[type="submit"]');
+                    const originalText = submitBtn.html();
+
+                    // Show loading state
+                    submitBtn.prop('disabled', true).html(
+                        '<i class="spinner-border spinner-border-sm me-1"></i> Assigning...');
+
+                    $.ajax({
+                        url: $(form).attr('action'),
+                        method: 'POST',
+                        data: formData,
+                        processData: false,
+                        contentType: false,
+                        success: function(response) {
+                            Swal.fire({
+                                icon: 'success',
+                                title: 'Success!',
+                                text: 'Task assigned successfully',
+                                confirmButtonColor: '#198754'
+                            });
+
+                            // Reset form
+                            form.reset();
+                            $('#user_id').val(null).trigger('change'); // Reset Select2
+                            if (tinymce.get('task_description')) {
+                                tinymce.get('task_description').setContent('');
+                            }
+
+                            // Reload DataTable
+                            if ($.fn.DataTable.isDataTable('#userTasksTable')) {
+                                location.reload(); // Reload to show new task in table
+                            }
+                        },
+                        error: function(xhr) {
+                            let errorMessage = 'An error occurred';
+                            if (xhr.responseJSON && xhr.responseJSON.message) {
+                                errorMessage = xhr.responseJSON.message;
+                            }
+
+                            Swal.fire({
+                                icon: 'error',
+                                title: 'Error!',
+                                text: errorMessage,
+                                confirmButtonColor: '#dc3545'
+                            });
+                        },
+                        complete: function() {
+                            // Restore button
+                            submitBtn.prop('disabled', false).html(originalText);
+                        }
+                    });
+
+                    return false; // Prevent default form submission
                 }
             });
 
-            // Add User Form Validation
+            // Add User Form Validation with AJAX
             $('#addUserForm').validate({
                 rules: {
                     name: {
@@ -534,6 +706,62 @@
                 },
                 unhighlight: function(element) {
                     $(element).removeClass('is-invalid');
+                },
+                submitHandler: function(form) {
+                    // AJAX submission
+                    const formData = new FormData(form);
+                    const submitBtn = $(form).find('button[type="submit"]');
+                    const originalText = submitBtn.html();
+
+                    // Show loading state
+                    submitBtn.prop('disabled', true).html(
+                        '<i class="spinner-border spinner-border-sm me-1"></i> Creating...');
+
+                    $.ajax({
+                        url: $(form).attr('action'),
+                        method: 'POST',
+                        data: formData,
+                        processData: false,
+                        contentType: false,
+                        success: function(response) {
+                            Swal.fire({
+                                icon: 'success',
+                                title: 'Success!',
+                                text: 'User created successfully',
+                                confirmButtonColor: '#198754'
+                            });
+
+                            // Reset form and close modal
+                            form.reset();
+                            $('#addUserModal').modal('hide');
+
+                            // Update user count and dropdown
+                            location.reload(); // Refresh to update user list and counts
+                        },
+                        error: function(xhr) {
+                            let errorMessage = 'An error occurred';
+                            if (xhr.responseJSON && xhr.responseJSON.errors) {
+                                const errors = Object.values(xhr.responseJSON.errors)
+                            .flat();
+                                errorMessage = errors.join('<br>');
+                            } else if (xhr.responseJSON && xhr.responseJSON.message) {
+                                errorMessage = xhr.responseJSON.message;
+                            }
+
+                            Swal.fire({
+                                icon: 'error',
+                                title: 'Error!',
+                                html: errorMessage,
+                                confirmButtonColor: '#dc3545'
+                            });
+                        },
+                        complete: function() {
+                            // Restore button
+                            submitBtn.prop('disabled', false).html(originalText);
+                        }
+                    });
+
+                    return false; // Prevent default form submission
                 }
             });
 
@@ -550,15 +778,16 @@
                 const form = editTaskModal.querySelector('#editTaskForm');
 
                 nameInput.value = taskName;
+                form.action = `{{ url('admin/tasks') }}/${taskId}/edit`;
 
-                // Set TinyMCE content if initialized, otherwise set textarea value
-                if (tinymce.get('editTaskDescription')) {
-                    tinymce.get('editTaskDescription').setContent(taskDescription);
-                } else {
-                    descriptionInput.value = taskDescription;
-                }
-
-                form.action = `/admin/tasks/${taskId}/edit`;
+                // Wait a bit for modal to be fully shown, then set TinyMCE content
+                setTimeout(function() {
+                    if (tinymce.get('editTaskDescription')) {
+                        tinymce.get('editTaskDescription').setContent(taskDescription || '');
+                    } else {
+                        descriptionInput.value = taskDescription || '';
+                    }
+                }, 100);
 
                 // Apply validation when modal is shown
                 $('#editTaskForm').validate({
@@ -569,10 +798,13 @@
                         },
                         description: {
                             required: function() {
-                                return tinymce.get('editTaskDescription') ?
-                                    tinymce.get('editTaskDescription').getContent().trim() ===
-                                    '' :
-                                    $('#editTaskDescription').val().trim() === '';
+                                if (tinymce.get('editTaskDescription')) {
+                                    const content = tinymce.get('editTaskDescription')
+                                        .getContent();
+                                    return content.trim() === '' || content === '<p></p>' ||
+                                        content === '<p><br></p>';
+                                }
+                                return $('#editTaskDescription').val().trim() === '';
                             },
                             minlength: 5
                         }
@@ -600,9 +832,70 @@
                         if (tinymce.get('editTaskDescription')) {
                             tinymce.get('editTaskDescription').save();
                         }
-                        form.submit();
+
+                        // AJAX submission
+                        const formData = new FormData(form);
+                        const submitBtn = $(form).find('button[type="submit"]');
+                        const originalText = submitBtn.html();
+
+                        // Show loading state
+                        submitBtn.prop('disabled', true).html(
+                            '<i class="spinner-border spinner-border-sm me-1"></i> Saving...'
+                            );
+
+                        $.ajax({
+                            url: $(form).attr('action'),
+                            method: 'POST',
+                            data: formData,
+                            processData: false,
+                            contentType: false,
+                            success: function(response) {
+                                Swal.fire({
+                                    icon: 'success',
+                                    title: 'Success!',
+                                    text: 'Task updated successfully',
+                                    confirmButtonColor: '#198754'
+                                });
+
+                                // Close modal
+                                $('#editTaskModal').modal('hide');
+
+                                // Reload page to reflect changes
+                                location.reload();
+                            },
+                            error: function(xhr) {
+                                let errorMessage = 'An error occurred';
+                                if (xhr.responseJSON && xhr.responseJSON.errors) {
+                                    const errors = Object.values(xhr.responseJSON
+                                        .errors).flat();
+                                    errorMessage = errors.join('<br>');
+                                } else if (xhr.responseJSON && xhr.responseJSON
+                                    .message) {
+                                    errorMessage = xhr.responseJSON.message;
+                                }
+
+                                Swal.fire({
+                                    icon: 'error',
+                                    title: 'Error!',
+                                    html: errorMessage,
+                                    confirmButtonColor: '#dc3545'
+                                });
+                            },
+                            complete: function() {
+                                // Restore button
+                                submitBtn.prop('disabled', false).html(
+                                originalText);
+                            }
+                        });
+
+                        return false; // Prevent default form submission
                     }
                 });
+            });
+
+            // Clean up validation when modal is hidden
+            editTaskModal.addEventListener('hidden.bs.modal', function() {
+                $('#editTaskForm').removeData('validator');
             });
 
             // View Task Modal
