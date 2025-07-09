@@ -23,10 +23,14 @@ class TaskController extends Controller
 
     public function store(Request $request)
     {
-        $request->validate(['name' => 'required|string|max:255']);
+        $request->validate([
+            'name' => 'required|string|max:255',
+            'description' => 'required|string|max:1000'
+        ]);
 
         $task = Task::create([
             'name' => $request->name,
+            'description' => $request->description,
             'user_id' => Auth::id(),
             'completed' => false,
             'completed_at' => null
@@ -38,6 +42,7 @@ class TaskController extends Controller
                 'task' => [
                     'id' => $task->id,
                     'name' => $task->name,
+                    'description' => $task->description,
                     'created_at' => $task->created_at->format('Y-m-d H:i:s'),
                     'completed' => $task->completed,
                     'completed_at' => $task->completed_at
@@ -63,6 +68,8 @@ class TaskController extends Controller
             return response()->json([
                 'success' => true,
                 'completed' => $isNowCompleted,
+                'name' => $task->name,
+                'description' => $task->description,
                 'created_at' => $task->created_at->format('Y-m-d H:i:s'),
                 'completed_at' => $task->completed_at ? $task->completed_at->format('Y-m-d H:i:s') : null
             ]);
@@ -88,14 +95,21 @@ class TaskController extends Controller
     {
         $this->authorize('editName', $task);
 
-        $request->validate(['name' => 'required|string|max:255']);
+        $request->validate([
+            'name' => 'required|string|max:255',
+            'description' => 'required|string|max:1000'
+        ]);
 
-        $task->update(['name' => $request->name]);
+        $task->update([
+            'name' => $request->name,
+            'description' => $request->description
+        ]);
 
         if ($request->expectsJson()) {
             return response()->json([
                 'success' => true,
-                'name' => $task->name
+                'name' => $task->name,
+                'description' => $task->description
             ]);
         }
 

@@ -12,8 +12,6 @@
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/jquery-validation@1.19.5/dist/jquery.validate.min.js"></script>
-
-    <!-- SweetAlert2 -->
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 
     <style>
@@ -40,8 +38,6 @@
 </head>
 
 <body class="bg-light">
-
-    <!-- ✅ Navbar -->
     <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
         <div class="container">
             <a class="navbar-brand" href="#">To-Do List</a>
@@ -65,16 +61,14 @@
 
                 <h2 class="mb-4 text-center">To-Do List</h2>
 
-                <!-- Add Task Form -->
-                <form id="addTaskForm" class="d-flex mb-4">
-                    <input type="text" name="name" id="taskName" class="form-control me-2"
-                        placeholder="Enter a task..." required>
-                    <button type="submit" class="btn btn-primary">
-                        <i class="bi bi-plus-circle"></i>
+                <!-- Add Task Button -->
+                <div class="mb-4 text-center">
+                    <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addTaskModal">
+                        <i class="bi bi-plus-circle me-1"></i> Add Task
                     </button>
-                </form>
+                </div>
 
-                <!-- Inside your container before the task list -->
+                <!-- Summary Cards -->
                 <div class="row mb-4 text-center">
                     <div class="col-md-4 mb-2">
                         <div class="card border-dark shadow-sm">
@@ -96,7 +90,7 @@
                         <div class="card border-primary shadow-sm">
                             <div class="card-body">
                                 <h6 class="text-muted mb-1">Pending</h6>
-                                <h4 class="fw-bold text-primary ">{{ $pendingTasks }}</h4>
+                                <h4 class="fw-bold text-primary">{{ $pendingTasks }}</h4>
                             </div>
                         </div>
                     </div>
@@ -107,21 +101,16 @@
                     @foreach ($tasks as $task)
                         <li class="list-group-item" id="task-{{ $task->id }}">
                             @if (!$task->completed)
-                                <p class="mb-2 d-flex justify-content-between align-items-center">
+                                <p class="mb-2">
                                     <span class="task-text" data-id="{{ $task->id }}"
-                                        data-name="{{ $task->name }}">
+                                        data-name="{{ $task->name }}" data-description="{{ $task->description }}">
                                         {{ $task->name }}
                                     </span>
-                                    <button class="btn btn-sm btn-warning edit-btn" data-id="{{ $task->id }}"
-                                        data-name="{{ $task->name }}" title="Edit">
-                                        <i class="bi bi-pencil-square"></i>
-                                    </button>
                                 </p>
                             @else
                                 <p class="mb-2 completed">{{ $task->name }}</p>
                             @endif
 
-                            <!-- 🕒 Timestamp Info -->
                             <small class="text-muted d-block ms-1">
                                 Created: {{ $task->created_at->format('M d, Y h:i A') }}
                                 @if ($task->completed_at)
@@ -130,40 +119,45 @@
                             </small>
 
                             <div class="d-flex mt-2">
+                                <button class="btn btn-sm btn-outline-info me-2 view-btn" data-id="{{ $task->id }}"
+                                    data-name="{{ $task->name }}" data-description="{{ $task->description }}"
+                                    title="View">
+                                    <i class="bi bi-eye"></i>
+                                </button>
                                 <button class="btn btn-sm btn-outline-success me-2 complete-btn"
                                     data-id="{{ $task->id }}"
                                     title="{{ $task->completed ? 'Undo' : 'Complete' }}">
                                     <i
                                         class="bi {{ $task->completed ? 'bi-arrow-counterclockwise' : 'bi-check2-circle' }}"></i>
                                 </button>
-                                <button class="btn btn-sm btn-outline-danger delete-btn" data-id="{{ $task->id }}"
-                                    title="Delete">
+                                <button class="btn btn-sm btn-outline-danger delete-btn" data-id="{{ $task->id }}">
                                     <i class="bi bi-trash3"></i>
                                 </button>
                             </div>
                         </li>
                     @endforeach
                 </ul>
-
-
-
             </div>
         </div>
     </div>
 
-    <!-- Edit Modal -->
-    <div class="modal fade" id="editTaskModal" tabindex="-1" aria-labelledby="editTaskModalLabel" aria-hidden="true">
+    <!-- Add Task Modal -->
+    <div class="modal fade" id="addTaskModal" tabindex="-1">
         <div class="modal-dialog">
-            <form id="modalEditForm" class="modal-content">
+            <form id="addTaskForm" class="modal-content">
                 <div class="modal-header">
-                    <h5 class="modal-title"><i class="bi bi-pencil-square me-1"></i>Edit Task</h5>
+                    <h5 class="modal-title">Add Task</h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                 </div>
                 <div class="modal-body">
-                    <input type="hidden" id="editTaskId">
                     <div class="mb-3">
-                        <label for="editTaskName" class="form-label">Task Name</label>
-                        <input type="text" class="form-control" id="editTaskName" name="editTaskName" required>
+                        <label for="taskName" class="form-label">Task Heading</label>
+                        <input type="text" class="form-control" id="taskName" name="name" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="taskDescription" class="form-label">Description</label>
+                        <textarea class="form-control" id="taskDescription" name="description" rows="3"
+                            placeholder="Enter task description..." required></textarea>
                     </div>
                 </div>
                 <div class="modal-footer">
@@ -171,256 +165,387 @@
                         <i class="bi bi-x-circle"></i>
                     </button>
                     <button type="submit" class="btn btn-dark">
-                        <i class="bi bi-save"></i>
+                        <i class="bi bi-save me-1"></i> Save
                     </button>
                 </div>
             </form>
         </div>
     </div>
 
-    <!-- Script Section -->
-    <script>
-        $(document).ready(function() {
-            const token = $('meta[name="csrf-token"]').attr('content');
-            const editModal = new bootstrap.Modal(document.getElementById('editTaskModal'));
+    <!-- Edit Task Modal -->
+    <div class="modal fade" id="editTaskModal" tabindex="-1">
+        <div class="modal-dialog">
+            <form id="modalEditForm" class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Edit Task</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <input type="hidden" id="editTaskId">
+                    <div class="mb-3">
+                        <label for="editTaskName" class="form-label">Task Heading</label>
+                        <input type="text" class="form-control" id="editTaskName" name="editTaskName" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="editTaskDescription" class="form-label">Description</label>
+                        <textarea class="form-control" id="editTaskDescription" name="editTaskDescription" rows="3"
+                            placeholder="Enter task description..." required></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">
+                        <i class="bi bi-x-circle"></i>
+                    </button>
+                    <button type="submit" class="btn btn-dark">
+                        <i class="bi bi-save me-1"></i> Update
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
 
-            // Utility to format date
+    <!-- View Task Modal -->
+    <div class="modal fade" id="viewTaskModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">View Task</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <form id="viewEditForm">
+                    <div class="modal-body">
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">Task Heading</label>
+                            <p class="form-control-plaintext border rounded p-2 bg-light" id="viewTaskName"></p>
+                            <input type="text" class="form-control d-none" id="editViewTaskName" required>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">Description</label>
+                            <p class="form-control-plaintext border rounded p-2 bg-light" id="viewTaskDescription"
+                                style="min-height: 80px; white-space: pre-wrap;"></p>
+                            <textarea class="form-control d-none" id="editViewTaskDescription" rows="4" required></textarea>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">
+                            <i class="bi bi-x-circle"></i> Close
+                        </button>
+                        <button type="button" class="btn btn-warning" id="viewEditBtn">
+                            <i class="bi bi-pencil-square me-1"></i> Edit
+                        </button>
+                        <button type="button" class="btn btn-outline-secondary d-none" id="cancelEditBtn">
+                            <i class="bi bi-x-circle me-1"></i> Cancel
+                        </button>
+                        <button type="submit" class="btn btn-success d-none" id="saveEditBtn">
+                            <i class="bi bi-save me-1"></i> Save
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- JS -->
+    <<script>
+        $(function() {
+            const token = $('meta[name="csrf-token"]').attr('content');
+            const addModal = new bootstrap.Modal(document.getElementById('addTaskModal'));
+            const editModal = new bootstrap.Modal(document.getElementById('editTaskModal'));
+            const viewModal = new bootstrap.Modal(document.getElementById('viewTaskModal'));
+
             function formatDate(dateStr) {
                 const d = new Date(dateStr);
                 return d.toLocaleString();
             }
 
-            // ✅ Add Task
+            // Function to update task counters
+            function updateTaskCounters() {
+                const totalTasks = $('#taskList li').length;
+                const completedTasks = $('#taskList li').filter(function() {
+                    return $(this).find('.completed').length > 0;
+                }).length;
+                const pendingTasks = totalTasks - completedTasks;
+
+                // Update the counter displays
+                $('.card-body h4').eq(0).text(totalTasks);
+                $('.card-body h4').eq(1).text(completedTasks);
+                $('.card-body h4').eq(2).text(pendingTasks);
+            }
+
+            // Add Task
             $('#addTaskForm').validate({
-                rules: {
-                    name: {
-                        required: true,
-                        minlength: 3
-                    }
-                },
-                messages: {
-                    name: {
-                        required: "Please enter a task name",
-                        minlength: "Task must be at least 3 characters"
-                    }
-                },
                 submitHandler: function(form, e) {
                     e.preventDefault();
-
                     const name = $('#taskName').val().trim();
+                    const description = $('#taskDescription').val().trim();
 
                     $.post("{{ route('tasks.store') }}", {
                         name,
+                        description,
                         _token: token
                     }, function(res) {
                         if (res.success) {
                             Swal.fire({
                                 icon: 'success',
                                 title: 'Task Added!',
-                                timer: 1000,
+                                timer: 2000,
                                 showConfirmButton: false
                             });
 
-                            // Append new task to list
-                            const task = res.task;
-                            const newItem = `
-                        <li class="list-group-item" id="task-${task.id}">
-                            <p class="mb-2 d-flex justify-content-between align-items-center">
-                                <span class="task-text" data-id="${task.id}" data-name="${task.name}">
-                                    ${task.name}
-                                </span>
-                                <button class="btn btn-sm btn-warning edit-btn" data-id="${task.id}" data-name="${task.name}" title="Edit">
-                                    <i class="bi bi-pencil-square"></i>
-                                </button>
-                            </p>
-                            <small class="text-muted d-block ms-1">
-                                Created: ${formatDate(task.created_at)}
-                            </small>
-                            <div class="d-flex mt-2">
-                                <button class="btn btn-sm btn-outline-success me-2 complete-btn" data-id="${task.id}" title="Complete">
-                                    <i class="bi bi-check2-circle"></i>
-                                </button>
-                                <button class="btn btn-sm btn-outline-danger delete-btn" data-id="${task.id}" title="Delete">
-                                    <i class="bi bi-trash3"></i>
-                                </button>
-                            </div>
-                        </li>`;
-                            $('#taskList').prepend(newItem);
+                            $('#taskList').prepend(`
+                            <li class="list-group-item" id="task-${res.task.id}">
+                                <p class="mb-2">
+                                    <span class="task-text" data-id="${res.task.id}" data-name="${res.task.name}" data-description="${res.task.description}">
+                                        ${res.task.name}
+                                    </span>
+                                </p>
+                                <small class="text-muted d-block ms-1">
+                                    Created: ${formatDate(res.task.created_at)}
+                                </small>
+                                <div class="d-flex mt-2">
+                                    <button class="btn btn-sm btn-outline-info me-2 view-btn" data-id="${res.task.id}" data-name="${res.task.name}" data-description="${res.task.description}" title="View">
+                                        <i class="bi bi-eye"></i>
+                                    </button>
+                                    <button class="btn btn-sm btn-outline-success me-2 complete-btn" data-id="${res.task.id}" title="Complete">
+                                        <i class="bi bi-check2-circle"></i>
+                                    </button>
+                                    <button class="btn btn-sm btn-outline-danger delete-btn" data-id="${res.task.id}">
+                                        <i class="bi bi-trash3"></i>
+                                    </button>
+                                </div>
+                            </li>
+                        `);
                             $('#taskName').val('');
+                            $('#taskDescription').val('');
+                            addModal.hide();
+
+                            // Update task counters
+                            updateTaskCounters();
                         }
                     });
                 }
             });
 
-            // ✅ Edit Task
-            $('#modalEditForm').validate({
-                rules: {
-                    editTaskName: {
-                        required: true,
-                        minlength: 3
-                    }
-                },
-                messages: {
-                    editTaskName: {
-                        required: "Task name is required",
-                        minlength: "Minimum 3 characters required"
-                    }
-                },
-                submitHandler: function(form, e) {
-                    e.preventDefault();
+            // View Task
+            $(document).on('click', '.view-btn', function() {
+                const id = $(this).data('id');
+                const name = $(this).data('name');
+                const description = $(this).data('description');
 
-                    const id = $('#editTaskId').val();
-                    const name = $('#editTaskName').val().trim();
+                // Check if task is completed by looking at the parent task item
+                const taskItem = $(`#task-${id}`);
+                const isCompleted = taskItem.find('.completed').length > 0;
 
-                    $.post(`{{ url('tasks') }}/${id}/edit`, {
-                        _token: token,
-                        name
-                    }, function(res) {
-                        if (res.success) {
-                            Swal.fire({
-                                icon: 'success',
-                                title: 'Task Updated!',
-                                timer: 1000,
-                                showConfirmButton: false
-                            });
+                $('#viewTaskName').text(name);
+                $('#viewTaskDescription').text(description);
 
-                            // Update task name in DOM
-                            const taskSpan = $(`#task-${id} .task-text`);
-                            taskSpan.text(name);
-                            taskSpan.data('name', name);
-                            $(`#task-${id} .edit-btn`).data('name', name);
+                // Store task data for edit functionality
+                $('#viewEditBtn').data('id', id).data('name', name).data('description', description);
 
-                            editModal.hide();
-                        }
-                    });
+                // Hide/show edit button based on completion status
+                if (isCompleted) {
+                    $('#viewEditBtn').hide();
+                } else {
+                    $('#viewEditBtn').show();
                 }
+
+                viewModal.show();
             });
 
-            // ✅ Mark as Complete / Undo
+            // Edit from View Modal
+            $('#viewEditBtn').on('click', function() {
+                // Switch to edit mode
+                $('#viewTaskName').addClass('d-none');
+                $('#viewTaskDescription').addClass('d-none');
+                $('#editViewTaskName').removeClass('d-none').val($(this).data('name'));
+                $('#editViewTaskDescription').removeClass('d-none').val($(this).data('description'));
+                
+                // Show/hide buttons
+                $('#viewEditBtn').addClass('d-none');
+                $('#cancelEditBtn').removeClass('d-none');
+                $('#saveEditBtn').removeClass('d-none');
+            });
+
+            // Cancel Edit in View Modal
+            $('#cancelEditBtn').on('click', function() {
+                // Switch back to view mode
+                $('#viewTaskName').removeClass('d-none');
+                $('#viewTaskDescription').removeClass('d-none');
+                $('#editViewTaskName').addClass('d-none');
+                $('#editViewTaskDescription').addClass('d-none');
+                
+                // Show/hide buttons
+                $('#viewEditBtn').removeClass('d-none');
+                $('#cancelEditBtn').addClass('d-none');
+                $('#saveEditBtn').addClass('d-none');
+            });
+
+            // Save Edit in View Modal
+            $('#viewEditForm').on('submit', function(e) {
+                e.preventDefault();
+                
+                const id = $('#viewEditBtn').data('id');
+                const name = $('#editViewTaskName').val().trim();
+                const description = $('#editViewTaskDescription').val().trim();
+
+                if (!name || !description) {
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'Please fill in all fields',
+                        timer: 2000,
+                        showConfirmButton: false
+                    });
+                    return;
+                }
+
+                $.post(`tasks/${id}/edit`, {
+                    _token: token,
+                    name,
+                    description
+                }, function(res) {
+                    if (res.success) {
+                        Swal.fire({
+                            icon: 'success',
+                            title: 'Task Updated!',
+                            timer: 2000,
+                            showConfirmButton: false
+                        });
+
+                        // Update the task in the list
+                        const taskItem = $(`#task-${id}`);
+                        taskItem.find('.task-text').text(name).data('name', name).data('description', res.description);
+                        taskItem.find('.view-btn').data('name', name).data('description', res.description);
+
+                        // Update the view modal display
+                        $('#viewTaskName').text(name);
+                        $('#viewTaskDescription').text(res.description);
+                        $('#viewEditBtn').data('name', name).data('description', res.description);
+
+                        // Switch back to view mode
+                        $('#viewTaskName').removeClass('d-none');
+                        $('#viewTaskDescription').removeClass('d-none');
+                        $('#editViewTaskName').addClass('d-none');
+                        $('#editViewTaskDescription').addClass('d-none');
+                        
+                        // Show/hide buttons
+                        $('#viewEditBtn').removeClass('d-none');
+                        $('#cancelEditBtn').addClass('d-none');
+                        $('#saveEditBtn').addClass('d-none');
+                    }
+                });
+            });
+
+            // Complete / Undo
             $(document).on('click', '.complete-btn', function() {
                 const id = $(this).data('id');
 
-                $.post(`{{ url('tasks') }}/${id}/complete`, {
+                $.post(`tasks/${id}/complete`, {
                     _token: token
                 }, function(res) {
                     if (res.success) {
                         Swal.fire({
                             icon: 'success',
-                            title: res.completed ? 'Task Completed!' : 'Marked as Pending!',
-                            timer: 800,
+                            title: res.completed ? 'Marked as Completed!' :
+                                'Marked as Pending!',
+                            timer: 2000,
                             showConfirmButton: false
                         });
 
                         const taskItem = $(`#task-${id}`);
-                        const taskName = taskItem.find('.task-text').length ?
-                            taskItem.find('.task-text').data('name') :
-                            taskItem.find('p.completed').text().trim();
-
-                        const timestamp = taskItem.find('small').html();
+                        const name = res.name; // Get name from server response
+                        const description = res.description; // Get description from server response
 
                         if (res.completed) {
-                            // Convert to completed view
                             taskItem.html(`
-                            <p class="mb-2 completed">${taskName}</p>
+                            <p class="mb-2 completed">${name}</p>
                             <small class="text-muted d-block ms-1">
-                                ${timestamp} | Completed: ${formatDate(res.completed_at)}
+                                Created: ${formatDate(res.created_at)} | Completed: ${formatDate(res.completed_at)}
                             </small>
                             <div class="d-flex mt-2">
+                                <button class="btn btn-sm btn-outline-info me-2 view-btn" data-id="${id}" data-name="${name}" data-description="${description}" title="View">
+                                    <i class="bi bi-eye"></i>
+                                </button>
                                 <button class="btn btn-sm btn-outline-success me-2 complete-btn" data-id="${id}" title="Undo">
                                     <i class="bi bi-arrow-counterclockwise"></i>
                                 </button>
-                                <button class="btn btn-sm btn-outline-danger delete-btn" data-id="${id}" title="Delete">
+                                <button class="btn btn-sm btn-outline-danger delete-btn" data-id="${id}">
                                     <i class="bi bi-trash3"></i>
                                 </button>
                             </div>
                         `);
                         } else {
-                            // Revert to pending view
                             taskItem.html(`
-                            <p class="mb-2 d-flex justify-content-between align-items-center">
-                                <span class="task-text" data-id="${id}" data-name="${taskName}">${taskName}</span>
-                                <button class="btn btn-sm btn-warning edit-btn" data-id="${id}" data-name="${taskName}" title="Edit">
-                                    <i class="bi bi-pencil-square"></i>
-                                </button>
+                            <p class="mb-2">
+                                <span class="task-text" data-id="${id}" data-name="${name}" data-description="${description}">
+                                    ${name}
+                                </span>
                             </p>
                             <small class="text-muted d-block ms-1">
                                 Created: ${formatDate(res.created_at)}
                             </small>
                             <div class="d-flex mt-2">
+                                <button class="btn btn-sm btn-outline-info me-2 view-btn" data-id="${id}" data-name="${name}" data-description="${description}" title="View">
+                                    <i class="bi bi-eye"></i>
+                                </button>
                                 <button class="btn btn-sm btn-outline-success me-2 complete-btn" data-id="${id}" title="Complete">
                                     <i class="bi bi-check2-circle"></i>
                                 </button>
-                                <button class="btn btn-sm btn-outline-danger delete-btn" data-id="${id}" title="Delete">
+                                <button class="btn btn-sm btn-outline-danger delete-btn" data-id="${id}">
                                     <i class="bi bi-trash3"></i>
                                 </button>
                             </div>
                         `);
                         }
+
+                        // Update task counters
+                        updateTaskCounters();
                     }
                 });
             });
 
-            // ✅ Delete Task
+            // Delete
             $(document).on('click', '.delete-btn', function() {
                 const id = $(this).data('id');
-
                 Swal.fire({
-                    title: 'Are you sure?',
-                    text: 'This task will be permanently deleted!',
+                    title: 'Delete this task?',
                     icon: 'warning',
                     showCancelButton: true,
                     confirmButtonColor: '#d33',
-                    cancelButtonColor: '#6c757d',
                     confirmButtonText: 'Yes, delete it!'
-                }).then((result) => {
+                }).then(result => {
                     if (result.isConfirmed) {
-                        $.post(`{{ url('tasks') }}/${id}/delete`, {
+                        $.post(`tasks/${id}/delete`, {
                             _token: token
                         }, function(res) {
                             if (res.success) {
+                                $(`#task-${id}`).remove();
                                 Swal.fire({
                                     icon: 'success',
                                     title: 'Deleted!',
-                                    timer: 1000,
+                                    timer: 2000,
                                     showConfirmButton: false
                                 });
-                                $(`#task-${id}`).remove();
+
+                                // Update task counters
+                                updateTaskCounters();
                             }
                         });
                     }
                 });
             });
 
-            // ✅ Open Edit Modal
-            $(document).on('click', '.edit-btn', function() {
-                const id = $(this).data('id');
-                const name = $(this).data('name');
-                $('#editTaskId').val(id);
-                $('#editTaskName').val(name);
-                editModal.show();
-            });
-
-            // ✅ Logout Confirm
-            $('#logoutBtn').on('click', function(e) {
-                e.preventDefault();
+            // Logout
+            $('#logoutBtn').on('click', function() {
                 Swal.fire({
                     title: 'Logout?',
-                    text: 'Are you sure you want to log out?',
-                    icon: 'question',
                     showCancelButton: true,
                     confirmButtonText: 'Yes, logout'
-                }).then((result) => {
-                    if (result.isConfirmed) {
-                        $('#logoutForm').submit();
-                    }
+                }).then(result => {
+                    if (result.isConfirmed) $('#logoutForm').submit();
                 });
             });
         });
     </script>
-
-
-
-
 
 </body>
 

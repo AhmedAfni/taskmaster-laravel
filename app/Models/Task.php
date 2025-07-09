@@ -6,7 +6,7 @@ use Illuminate\Database\Eloquent\Model;
 
 class Task extends Model
 {
-    protected $fillable = ['name', 'completed', 'user_id', 'completed_at', 'assigned_by_admin_id'];
+    protected $fillable = ['name', 'description', 'completed', 'user_id', 'completed_at', 'assigned_by_admin_id'];
 
     protected $casts = [
         'created_at' => 'datetime',
