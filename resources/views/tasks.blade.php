@@ -184,7 +184,13 @@
             const token = $('meta[name="csrf-token"]').attr('content');
             const editModal = new bootstrap.Modal(document.getElementById('editTaskModal'));
 
-            // Add Task
+            // Utility to format date
+            function formatDate(dateStr) {
+                const d = new Date(dateStr);
+                return d.toLocaleString();
+            }
+
+            // ✅ Add Task
             $('#addTaskForm').validate({
                 rules: {
                     name: {
@@ -192,26 +198,61 @@
                         minlength: 3
                     }
                 },
-                submitHandler: function(form) {
+                messages: {
+                    name: {
+                        required: "Please enter a task name",
+                        minlength: "Task must be at least 3 characters"
+                    }
+                },
+                submitHandler: function(form, e) {
+                    e.preventDefault();
+
                     const name = $('#taskName').val().trim();
+
                     $.post("{{ route('tasks.store') }}", {
                         name,
                         _token: token
                     }, function(res) {
                         if (res.success) {
                             Swal.fire({
-                                    icon: 'success',
-                                    title: 'Task Added!',
-                                    timer: 1200,
-                                    showConfirmButton: false
-                                })
-                                .then(() => location.reload());
+                                icon: 'success',
+                                title: 'Task Added!',
+                                timer: 1000,
+                                showConfirmButton: false
+                            });
+
+                            // Append new task to list
+                            const task = res.task;
+                            const newItem = `
+                        <li class="list-group-item" id="task-${task.id}">
+                            <p class="mb-2 d-flex justify-content-between align-items-center">
+                                <span class="task-text" data-id="${task.id}" data-name="${task.name}">
+                                    ${task.name}
+                                </span>
+                                <button class="btn btn-sm btn-warning edit-btn" data-id="${task.id}" data-name="${task.name}" title="Edit">
+                                    <i class="bi bi-pencil-square"></i>
+                                </button>
+                            </p>
+                            <small class="text-muted d-block ms-1">
+                                Created: ${formatDate(task.created_at)}
+                            </small>
+                            <div class="d-flex mt-2">
+                                <button class="btn btn-sm btn-outline-success me-2 complete-btn" data-id="${task.id}" title="Complete">
+                                    <i class="bi bi-check2-circle"></i>
+                                </button>
+                                <button class="btn btn-sm btn-outline-danger delete-btn" data-id="${task.id}" title="Delete">
+                                    <i class="bi bi-trash3"></i>
+                                </button>
+                            </div>
+                        </li>`;
+                            $('#taskList').prepend(newItem);
+                            $('#taskName').val('');
                         }
                     });
                 }
             });
 
-            // Edit Task
+            // ✅ Edit Task
             $('#modalEditForm').validate({
                 rules: {
                     editTaskName: {
@@ -219,7 +260,15 @@
                         minlength: 3
                     }
                 },
-                submitHandler: function() {
+                messages: {
+                    editTaskName: {
+                        required: "Task name is required",
+                        minlength: "Minimum 3 characters required"
+                    }
+                },
+                submitHandler: function(form, e) {
+                    e.preventDefault();
+
                     const id = $('#editTaskId').val();
                     const name = $('#editTaskName').val().trim();
 
@@ -229,36 +278,86 @@
                     }, function(res) {
                         if (res.success) {
                             Swal.fire({
-                                    icon: 'success',
-                                    title: 'Task Updated!',
-                                    timer: 1200,
-                                    showConfirmButton: false
-                                })
-                                .then(() => location.reload());
+                                icon: 'success',
+                                title: 'Task Updated!',
+                                timer: 1000,
+                                showConfirmButton: false
+                            });
+
+                            // Update task name in DOM
+                            const taskSpan = $(`#task-${id} .task-text`);
+                            taskSpan.text(name);
+                            taskSpan.data('name', name);
+                            $(`#task-${id} .edit-btn`).data('name', name);
+
+                            editModal.hide();
                         }
                     });
                 }
             });
 
-            // Complete / Undo Task
+            // ✅ Mark as Complete / Undo
             $(document).on('click', '.complete-btn', function() {
                 const id = $(this).data('id');
+
                 $.post(`{{ url('tasks') }}/${id}/complete`, {
                     _token: token
                 }, function(res) {
                     if (res.success) {
                         Swal.fire({
-                                icon: 'success',
-                                title: res.completed ? 'Completed!' : 'Marked Incomplete!',
-                                timer: 1000,
-                                showConfirmButton: false
-                            })
-                            .then(() => location.reload());
+                            icon: 'success',
+                            title: res.completed ? 'Task Completed!' : 'Marked as Pending!',
+                            timer: 800,
+                            showConfirmButton: false
+                        });
+
+                        const taskItem = $(`#task-${id}`);
+                        const taskName = taskItem.find('.task-text').text();
+                        const timestamp = taskItem.find('small').html();
+
+                        if (res.completed) {
+                            // Convert to completed view
+                            taskItem.html(`
+                            <p class="mb-2 completed">${taskName}</p>
+                            <small class="text-muted d-block ms-1">
+                                ${timestamp} | Completed: ${formatDate(res.completed_at)}
+                            </small>
+                            <div class="d-flex mt-2">
+                                <button class="btn btn-sm btn-outline-success me-2 complete-btn" data-id="${id}" title="Undo">
+                                    <i class="bi bi-arrow-counterclockwise"></i>
+                                </button>
+                                <button class="btn btn-sm btn-outline-danger delete-btn" data-id="${id}" title="Delete">
+                                    <i class="bi bi-trash3"></i>
+                                </button>
+                            </div>
+                        `);
+                        } else {
+                            // Revert to pending view
+                            taskItem.html(`
+                            <p class="mb-2 d-flex justify-content-between align-items-center">
+                                <span class="task-text" data-id="${id}" data-name="${taskName}">${taskName}</span>
+                                <button class="btn btn-sm btn-warning edit-btn" data-id="${id}" data-name="${taskName}" title="Edit">
+                                    <i class="bi bi-pencil-square"></i>
+                                </button>
+                            </p>
+                            <small class="text-muted d-block ms-1">
+                                Created: ${formatDate(res.created_at)}
+                            </small>
+                            <div class="d-flex mt-2">
+                                <button class="btn btn-sm btn-outline-success me-2 complete-btn" data-id="${id}" title="Complete">
+                                    <i class="bi bi-check2-circle"></i>
+                                </button>
+                                <button class="btn btn-sm btn-outline-danger delete-btn" data-id="${id}" title="Delete">
+                                    <i class="bi bi-trash3"></i>
+                                </button>
+                            </div>
+                        `);
+                        }
                     }
                 });
             });
 
-            // Delete Task
+            // ✅ Delete Task
             $(document).on('click', '.delete-btn', function() {
                 const id = $(this).data('id');
 
@@ -289,7 +388,7 @@
                 });
             });
 
-            // Edit Button
+            // ✅ Open Edit Modal
             $(document).on('click', '.edit-btn', function() {
                 const id = $(this).data('id');
                 const name = $(this).data('name');
@@ -298,7 +397,7 @@
                 editModal.show();
             });
 
-            // Logout
+            // ✅ Logout Confirm
             $('#logoutBtn').on('click', function(e) {
                 e.preventDefault();
                 Swal.fire({
@@ -315,6 +414,8 @@
             });
         });
     </script>
+
+
 
 
 
