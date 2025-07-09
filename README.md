@@ -1,69 +1,66 @@
-# 📋 TaskMaster - Task Management System
+# 📋 TaskMaster - Laravel Task Manager
 
 <p align="center">
-    <img src="https://img.shields.io/badge/Laravel-11.x-red?style=for-the-badge&logo=laravel" alt="Laravel 11.x">
-    <img src="https://img.shields.io/badge/PHP-8.1+-blue?style=for-the-badge&logo=php" alt="PHP 8.1+">
-    <img src="https://img.shields.io/badge/Bootstrap-5.3-purple?style=for-the-badge&logo=bootstrap" alt="Bootstrap 5.3">
+  <img src="https://img.shields.io/badge/Laravel-11.x-red?style=for-the-badge&logo=laravel">
+  <img src="https://img.shields.io/badge/PHP-8.1+-blue?style=for-the-badge&logo=php">
+  <img src="https://img.shields.io/badge/Bootstrap-5.3-purple?style=for-the-badge&logo=bootstrap">
 </p>
 
-<p align="center">
-    A modern task management application built with Laravel 11, featuring dual authentication, rich text editing, and AJAX interactions.
-</p>
+> A modern task management app with admin & user dashboards, rich text editing, and real-time AJAX interactions.
 
-## ✨ Features
+---
 
--   **Admin Dashboard**: Manage users and assign tasks with rich text descriptions
--   **User Dashboard**: View and manage assigned tasks
--   **Rich Text Editor**: TinyMCE integration for detailed task descriptions
--   **Real-time Updates**: AJAX operations without page reloads
--   **Responsive Design**: Mobile-friendly Bootstrap interface
--   **Advanced Tables**: Search, sort, and paginate with DataTables
+## 📌 About the Project
 
-## 🛠️ Tech Stack
+**TaskMaster** is a Laravel 11-based task management system designed for teams and organizations to efficiently assign, track, and manage tasks. 
+With dual authentication, real-time updates, and a clean responsive UI, it streamlines task workflows for both admins and users.
 
--   **Laravel 11.x** - Backend framework
--   **Bootstrap 5.3** - Frontend styling
--   **MySQL** - Database
--   **TinyMCE** - Rich text editor
--   **jQuery** - JavaScript interactions
+---
 
-## 🚀 Quick Start
+## ✅ Features
 
-### Requirements
+### 👨‍💼 Admin Panel
+- View all registered users
+- Assign tasks with rich text descriptions (TinyMCE)
+- Edit, delete, and update any task
+- Perform all actions via AJAX (no reload)
 
--   PHP 8.1+
--   Composer
--   MySQL
--   Node.js & NPM
+### 🙋‍♂️ User Dashboard
+- View tasks assigned by admin
+- Mark tasks as completed or undo them
+- View task details in a formatted modal
 
-### Installation
+### 🛠 Technical Highlights
+- Dual Authentication (Admins & Users)
+- AJAX-based interactions with real-time UI updates
+- Rich text editing via TinyMCE
+- Enhanced task tables with DataTables (search, sort, paginate)
+- Fully responsive interface using Bootstrap 5.3
 
-1. **Clone and install**
+---
+
+## 🛠 Tech Stack
+
+- Laravel 11.x  
+- MySQL  
+- Bootstrap 5.3  
+- jQuery + AJAX  
+- TinyMCE + DataTables
+
+---
+
+## 📦 Installation
 
 ```bash
 git clone https://github.com/yourusername/taskmaster-laravel.git
 cd taskmaster-laravel
 composer install
 npm install
-```
-
-2. **Setup environment**
-
-```bash
 cp .env.example .env
 php artisan key:generate
 ```
 
-3. **Configure database**
-   Edit `.env` with your database credentials:
-
-```env
-DB_DATABASE=taskmaster_laravel
-DB_USERNAME=your_username
-DB_PASSWORD=your_password
-```
-
-4. **Run migrations and start**
+### Configure `.env` and run:
 
 ```bash
 php artisan migrate
@@ -71,32 +68,39 @@ npm run build
 php artisan serve
 ```
 
-Visit `http://localhost:8000` to access the application.
+Visit: `http://localhost:8000`
 
-## � Usage
+---
 
-### Admin Access
+## 👥 Admin Access
 
-1. Register as a user
-2. Update the `users` table: set `is_admin = 1`
-3. Access admin dashboard at `/admin`
+To create an admin:
+1. Register normally via UI  
+2. Update `users` table: set `is_admin = 1`  
+   or insert into `admins` table directly
 
-### User Access
+---
 
--   Register/login to view assigned tasks
--   Mark tasks complete/incomplete
--   View rich text task descriptions
+## 🔐 Auth Guards
 
-## 🤝 Contributing
+- `web`: User access  
+- `admin`: Admin access
 
-1. Fork the repository
-2. Create a feature branch
-3. Make your changes
-4. Submit a pull request
+---
+
+## 📁 Highlights
+
+- `/admin/dashboard` – Admin control panel  
+- `/tasks` – User task list  
+- AJAX for task actions: complete, undo, edit, delete  
+- Rich text rendering in modals  
+- SweetAlert2 for confirmation prompts
+
+---
 
 ## 📄 License
 
-This project is licensed under the [MIT License](LICENSE).
+MIT © Your Name or Org
 
 ---
 
