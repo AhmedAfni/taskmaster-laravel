@@ -36,10 +36,14 @@ class AdminController extends Controller
     public function editTask(Request $request, Task $task)
     {
         $request->validate([
-            'name' => 'required|string|max:255'
+            'name' => 'required|string|max:255',
+            'description' => 'required|string|max:1000'
         ]);
 
-        $task->update(['name' => $request->name]);
+        $task->update([
+            'name' => $request->name,
+            'description' => $request->description
+        ]);
         return back()->with('success', 'Task updated successfully.');
     }
 
@@ -60,11 +64,13 @@ class AdminController extends Controller
         $request->validate([
             'user_id' => 'required|exists:users,id',
             'task_name' => 'required|string|max:255',
+            'task_description' => 'required|string|max:1000',
         ]);
 
         Task::create([
             'user_id' => $request->user_id,
             'name' => $request->task_name,
+            'description' => $request->task_description,
             'completed' => false,
         ]);
 

@@ -31,6 +31,12 @@
                             </td>
                             <td>{{ $task->created_at->format('d M Y, h:i A') }}</td>
                             <td>
+                                <!-- View -->
+                                <button type="button" class="btn btn-outline-info btn-sm" title="View Details"
+                                    data-bs-toggle="modal" data-bs-target="#viewTaskModal{{ $task->id }}">
+                                    <i class="bi bi-eye"></i>
+                                </button>
+
                                 <!-- Complete / Undo -->
                                 <form
                                     action="{{ $task->completed ? route('admin.tasks.undo', $task->id) : route('admin.tasks.complete', $task->id) }}"
@@ -57,6 +63,42 @@
                                     </button>
                                 </form>
 
+                                <!-- View Task Modal -->
+                                <div class="modal fade" id="viewTaskModal{{ $task->id }}" tabindex="-1"
+                                    aria-labelledby="viewTaskLabel{{ $task->id }}" aria-hidden="true">
+                                    <div class="modal-dialog">
+                                        <div class="modal-content">
+                                            <div class="modal-header">
+                                                <h5 class="modal-title" id="viewTaskLabel{{ $task->id }}">
+                                                    <i class="bi bi-eye me-2"></i>Task Details
+                                                </h5>
+                                                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                                            </div>
+                                            <div class="modal-body">
+                                                <div class="mb-3">
+                                                    <label class="form-label fw-bold">Task Title</label>
+                                                    <p class="form-control-plaintext border rounded p-3 bg-light mb-0">
+                                                        {{ $task->name }}
+                                                    </p>
+                                                </div>
+                                                <div class="mb-0">
+                                                    <label class="form-label fw-bold">Description</label>
+                                                    <div class="border rounded p-3 bg-light"
+                                                        style="min-height: 100px; white-space: pre-wrap; line-height: 1.5;">
+                                                        {{ $task->description ?? 'No description provided' }}
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <div class="modal-footer">
+                                                <button type="button" class="btn btn-outline-secondary"
+                                                    data-bs-dismiss="modal">
+                                                    <i class="bi bi-x-circle me-1"></i>Close
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
                                 <!-- Edit Modal -->
                                 <div class="modal fade" id="editTaskModal{{ $task->id }}" tabindex="-1"
                                     aria-labelledby="editTaskLabel{{ $task->id }}" aria-hidden="true">
@@ -65,22 +107,31 @@
                                             @csrf
                                             <div class="modal-content">
                                                 <div class="modal-header">
-                                                    <h5 class="modal-title" id="editTaskLabel{{ $task->id }}">Edit Task
+                                                    <h5 class="modal-title" id="editTaskLabel{{ $task->id }}">
+                                                        <i class="bi bi-pencil-square me-2"></i>Edit Task
                                                     </h5>
                                                     <button type="button" class="btn-close"
                                                         data-bs-dismiss="modal"></button>
                                                 </div>
                                                 <div class="modal-body">
                                                     <div class="mb-3">
-                                                        <label class="form-label">Task Name</label>
+                                                        <label class="form-label fw-semibold">Task Title</label>
                                                         <input type="text" name="name" class="form-control"
                                                             value="{{ $task->name }}" required>
                                                     </div>
+                                                    <div class="mb-3">
+                                                        <label class="form-label fw-semibold">Description</label>
+                                                        <textarea name="description" class="form-control" rows="4" placeholder="Enter task description...">{{ $task->description }}</textarea>
+                                                    </div>
                                                 </div>
                                                 <div class="modal-footer">
-                                                    <button type="button" class="btn btn-secondary"
-                                                        data-bs-dismiss="modal">Cancel</button>
-                                                    <button type="submit" class="btn btn-primary">Update Task</button>
+                                                    <button type="button" class="btn btn-outline-secondary"
+                                                        data-bs-dismiss="modal">
+                                                        <i class="bi bi-x-circle me-1"></i>Cancel
+                                                    </button>
+                                                    <button type="submit" class="btn btn-primary">
+                                                        <i class="bi bi-save me-1"></i>Update Task
+                                                    </button>
                                                 </div>
                                             </div>
                                         </form>
@@ -100,6 +151,21 @@
 @push('styles')
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css" rel="stylesheet">
     <link href="https://cdn.datatables.net/1.13.6/css/dataTables.bootstrap5.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css" rel="stylesheet">
+
+    <style>
+        .btn-group .btn {
+            margin-right: 2px;
+        }
+
+        .btn-group .btn:last-child {
+            margin-right: 0;
+        }
+
+        .modal-header .modal-title i {
+            color: #6c757d;
+        }
+    </style>
 @endpush
 
 @push('scripts')
@@ -129,13 +195,15 @@
                 e.preventDefault();
                 const form = this;
                 Swal.fire({
-                    title: 'Are you sure?',
-                    text: "This task will be deleted permanently.",
+                    title: 'Delete Task?',
+                    text: "This action cannot be undone!",
                     icon: 'warning',
                     showCancelButton: true,
-                    confirmButtonColor: '#d33',
+                    confirmButtonColor: '#dc3545',
                     cancelButtonColor: '#6c757d',
-                    confirmButtonText: 'Yes, delete it!'
+                    confirmButtonText: 'Yes, delete it!',
+                    cancelButtonText: 'Cancel',
+                    reverseButtons: true
                 }).then((result) => {
                     if (result.isConfirmed) {
                         form.submit();
@@ -147,9 +215,11 @@
             @if (session('success'))
                 Swal.fire({
                     icon: 'success',
-                    title: 'Success',
+                    title: 'Success!',
                     text: '{{ session('success') }}',
-                    confirmButtonColor: '#3085d6'
+                    confirmButtonColor: '#198754',
+                    timer: 3000,
+                    timerProgressBar: true
                 });
             @endif
 
@@ -157,9 +227,9 @@
             @if (session('error'))
                 Swal.fire({
                     icon: 'error',
-                    title: 'Error',
+                    title: 'Error!',
                     text: '{{ session('error') }}',
-                    confirmButtonColor: '#d33'
+                    confirmButtonColor: '#dc3545'
                 });
             @endif
         });

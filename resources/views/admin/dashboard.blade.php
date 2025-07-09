@@ -53,7 +53,7 @@
                 <form method="POST" action="{{ route('admin.tasks.assign') }}">
                     @csrf
                     <div class="row g-3 align-items-end">
-                        <div class="col-md-5">
+                        <div class="col-md-3">
                             <label for="user_id" class="form-label small fw-semibold">Select User</label>
                             <select name="user_id" id="user_id" class="form-select" required>
                                 <option value="" disabled selected>Choose a user...</option>
@@ -62,10 +62,15 @@
                                 @endforeach
                             </select>
                         </div>
-                        <div class="col-md-5">
+                        <div class="col-md-3">
                             <label for="task_name" class="form-label small fw-semibold">Task Title</label>
                             <input type="text" name="task_name" id="task_name" class="form-control"
                                 placeholder="e.g. Prepare Report" required>
+                        </div>
+                        <div class="col-md-4">
+                            <label for="task_description" class="form-label small fw-semibold">Description</label>
+                            <input type="text" name="task_description" id="task_description" class="form-control"
+                                placeholder="Task details..." required>
                         </div>
                         <div class="col-md-2">
                             <button type="submit" class="btn btn-dark w-100">
@@ -134,6 +139,15 @@
                             <!-- Actions -->
                             <td>
                                 <div class="d-flex gap-1">
+                                    <!-- View -->
+                                    <button type="button" class="btn btn-sm btn-outline-info" data-bs-toggle="modal"
+                                        data-bs-target="#viewTaskModal" data-task-id="{{ $task->id }}"
+                                        data-task-name="{{ $task->name }}"
+                                        data-task-description="{{ $task->description ?? 'No description' }}"
+                                        title="View Details">
+                                        <i class="bi bi-eye"></i>
+                                    </button>
+
                                     <!-- Complete / Undo -->
                                     <form method="POST"
                                         action="{{ $task->completed ? route('admin.tasks.undo', $task) : route('admin.tasks.complete', $task) }}">
@@ -149,7 +163,8 @@
                                     <!-- Edit -->
                                     <button type="button" class="btn btn-sm btn-outline-primary" data-bs-toggle="modal"
                                         data-bs-target="#editTaskModal" data-task-id="{{ $task->id }}"
-                                        data-task-name="{{ $task->name }}">
+                                        data-task-name="{{ $task->name }}"
+                                        data-task-description="{{ $task->description ?? 'No description' }}">
                                         <i class="bi bi-pencil-square"></i>
                                     </button>
 
@@ -176,6 +191,34 @@
     </div>
 
 
+    <!-- View Task Modal -->
+    <div class="modal fade" id="viewTaskModal" tabindex="-1" aria-labelledby="viewTaskModalLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">View Task Details</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Task Title</label>
+                        <div class="border rounded p-3 bg-light" id="viewTaskName" style="line-height: 1.5;"></div>
+                    </div>
+                    <div class="mb-0">
+                        <label class="form-label fw-bold">Description</label>
+                        <div class="border rounded p-3 bg-light" id="viewTaskDescription"
+                            style="min-height: 100px; white-space: pre-wrap; line-height: 1.5;"></div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">
+                        <i class="bi bi-x-circle"></i> Close
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- Edit Task Modal -->
     <div class="modal fade" id="editTaskModal" tabindex="-1" aria-labelledby="editTaskModalLabel" aria-hidden="true">
         <div class="modal-dialog">
@@ -190,6 +233,11 @@
                         <div class="mb-3">
                             <label for="editTaskName" class="form-label">Task Title</label>
                             <input type="text" name="name" id="editTaskName" class="form-control" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="editTaskDescription" class="form-label">Description</label>
+                            <textarea name="description" id="editTaskDescription" class="form-control" rows="3"
+                                placeholder="Enter task description..." required></textarea>
                         </div>
                     </div>
                     <div class="modal-footer">
@@ -286,7 +334,7 @@
                     },
                     columnDefs: [{
                         orderable: false,
-                        targets: [0, 5] // '#' and Actions
+                        targets: [0, 5] // '#' and Actions columns
                     }]
                 });
 
@@ -376,6 +424,10 @@
                     task_name: {
                         required: true,
                         minlength: 3
+                    },
+                    task_description: {
+                        required: true,
+                        minlength: 5
                     }
                 },
                 messages: {
@@ -383,6 +435,47 @@
                     task_name: {
                         required: "Please enter a task title.",
                         minlength: "Task title must be at least 3 characters."
+                    },
+                    task_description: {
+                        required: "Please enter a description.",
+                        minlength: "Description must be at least 5 characters."
+                    }
+                },
+                errorClass: 'text-danger small',
+                errorElement: 'div',
+                highlight: function(element) {
+                    $(element).addClass('is-invalid');
+                },
+                unhighlight: function(element) {
+                    $(element).removeClass('is-invalid');
+                }
+            });
+
+            // Add User Form Validation
+            $('#addUserForm').validate({
+                rules: {
+                    name: {
+                        required: true,
+                        minlength: 2
+                    },
+                    email: {
+                        required: true,
+                        email: true
+                    },
+                    password: {
+                        required: true,
+                        minlength: 6
+                    }
+                },
+                messages: {
+                    name: "Please enter a name",
+                    email: {
+                        required: "Email is required",
+                        email: "Enter a valid email"
+                    },
+                    password: {
+                        required: "Password is required",
+                        minlength: "Minimum 6 characters"
                     }
                 },
                 errorClass: 'text-danger small',
@@ -401,11 +494,14 @@
                 const button = event.relatedTarget;
                 const taskId = button.getAttribute('data-task-id');
                 const taskName = button.getAttribute('data-task-name');
+                const taskDescription = button.getAttribute('data-task-description');
 
-                const input = editTaskModal.querySelector('#editTaskName');
+                const nameInput = editTaskModal.querySelector('#editTaskName');
+                const descriptionInput = editTaskModal.querySelector('#editTaskDescription');
                 const form = editTaskModal.querySelector('#editTaskForm');
 
-                input.value = taskName;
+                nameInput.value = taskName;
+                descriptionInput.value = taskDescription;
                 form.action = `/admin/tasks/${taskId}/edit`;
 
                 // Apply validation when modal is shown
@@ -414,12 +510,20 @@
                         name: {
                             required: true,
                             minlength: 3
+                        },
+                        description: {
+                            required: true,
+                            minlength: 5
                         }
                     },
                     messages: {
                         name: {
                             required: "Task title is required.",
                             minlength: "Task title must be at least 3 characters."
+                        },
+                        description: {
+                            required: "Description is required.",
+                            minlength: "Description must be at least 5 characters."
                         }
                     },
                     errorClass: 'text-danger small',
@@ -431,44 +535,20 @@
                         $(element).removeClass('is-invalid');
                     }
                 });
+            });
 
-                // Add User Form Validation
-                $('#addUserForm').validate({
-                    rules: {
-                        name: {
-                            required: true,
-                            minlength: 2
-                        },
-                        email: {
-                            required: true,
-                            email: true
-                        },
-                        password: {
-                            required: true,
-                            minlength: 6
-                        }
-                    },
-                    messages: {
-                        name: "Please enter a name",
-                        email: {
-                            required: "Email is required",
-                            email: "Enter a valid email"
-                        },
-                        password: {
-                            required: "Password is required",
-                            minlength: "Minimum 6 characters"
-                        }
-                    },
-                    errorClass: 'text-danger small',
-                    errorElement: 'div',
-                    highlight: function(element) {
-                        $(element).addClass('is-invalid');
-                    },
-                    unhighlight: function(element) {
-                        $(element).removeClass('is-invalid');
-                    }
-                });
+            // View Task Modal
+            const viewTaskModal = document.getElementById('viewTaskModal');
+            viewTaskModal.addEventListener('show.bs.modal', function(event) {
+                const button = event.relatedTarget;
+                const taskName = button.getAttribute('data-task-name');
+                const taskDescription = button.getAttribute('data-task-description');
 
+                const nameElement = viewTaskModal.querySelector('#viewTaskName');
+                const descriptionElement = viewTaskModal.querySelector('#viewTaskDescription');
+
+                nameElement.textContent = taskName;
+                descriptionElement.textContent = taskDescription;
             });
         });
     </script>
