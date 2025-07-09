@@ -742,7 +742,7 @@
                             let errorMessage = 'An error occurred';
                             if (xhr.responseJSON && xhr.responseJSON.errors) {
                                 const errors = Object.values(xhr.responseJSON.errors)
-                            .flat();
+                                    .flat();
                                 errorMessage = errors.join('<br>');
                             } else if (xhr.responseJSON && xhr.responseJSON.message) {
                                 errorMessage = xhr.responseJSON.message;
@@ -841,7 +841,7 @@
                         // Show loading state
                         submitBtn.prop('disabled', true).html(
                             '<i class="spinner-border spinner-border-sm me-1"></i> Saving...'
-                            );
+                        );
 
                         $.ajax({
                             url: $(form).attr('action'),
@@ -884,7 +884,7 @@
                             complete: function() {
                                 // Restore button
                                 submitBtn.prop('disabled', false).html(
-                                originalText);
+                                    originalText);
                             }
                         });
 
