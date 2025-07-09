@@ -53,23 +53,28 @@
                 <form method="POST" action="{{ route('admin.tasks.assign') }}">
                     @csrf
                     <div class="row g-3">
-                        <div class="col-md-4">
-                            <label for="user_id" class="form-label small fw-semibold">Select User</label>
-                            <select name="user_id" id="user_id" class="form-select" required>
-                                <option value="" disabled selected>Choose a user...</option>
-                                @foreach ($users as $user)
-                                    <option value="{{ $user->id }}">{{ $user->name }} ({{ $user->email }})</option>
-                                @endforeach
-                            </select>
+                        <div class="col-md-6">
+                            <div class="row g-3">
+                                <div class="col-12">
+                                    <label for="user_id" class="form-label small fw-semibold">Select User</label>
+                                    <select name="user_id" id="user_id" class="form-select" required>
+                                        <option value="" disabled selected>Choose a user...</option>
+                                        @foreach ($users as $user)
+                                            <option value="{{ $user->id }}">{{ $user->name }} ({{ $user->email }})
+                                            </option>
+                                        @endforeach
+                                    </select>
+                                </div>
+                                <div class="col-12">
+                                    <label for="task_name" class="form-label small fw-semibold">Task Title</label>
+                                    <input type="text" name="task_name" id="task_name" class="form-control"
+                                        placeholder="e.g. Prepare Report" required>
+                                </div>
+                            </div>
                         </div>
-                        <div class="col-md-4">
-                            <label for="task_name" class="form-label small fw-semibold">Task Title</label>
-                            <input type="text" name="task_name" id="task_name" class="form-control"
-                                placeholder="e.g. Prepare Report" required>
-                        </div>
-                        <div class="col-md-4">
+                        <div class="col-md-6">
                             <label for="task_description" class="form-label small fw-semibold">Description</label>
-                            <textarea name="task_description" id="task_description" class="form-control" rows="3"
+                            <textarea name="task_description" id="task_description" class="form-control" rows="4"
                                 placeholder="Task details..." required></textarea>
                         </div>
                         <div class="col-12 text-end">
@@ -356,7 +361,7 @@
             // Initialize TinyMCE for Assign Task form
             tinymce.init({
                 selector: '#task_description',
-                height: 100,
+                height: 120,
                 menubar: false,
                 plugins: ['lists', 'link'],
                 toolbar: 'undo redo | bold italic underline | bullist numlist | link | removeformat',

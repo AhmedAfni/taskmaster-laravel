@@ -84,8 +84,8 @@
                                                 <div class="mb-0">
                                                     <label class="form-label fw-bold">Description</label>
                                                     <div class="border rounded p-3 bg-light"
-                                                        style="min-height: 100px; white-space: pre-wrap; line-height: 1.5;">
-                                                        {{ $task->description ?? 'No description provided' }}
+                                                        style="min-height: 100px; white-space: normal; line-height: 1.5;">
+                                                        {!! $task->description ?? 'No description provided' !!}
                                                     </div>
                                                 </div>
                                             </div>
@@ -121,7 +121,8 @@
                                                     </div>
                                                     <div class="mb-3">
                                                         <label class="form-label fw-semibold">Description</label>
-                                                        <textarea name="description" class="form-control" rows="4" placeholder="Enter task description...">{{ $task->description }}</textarea>
+                                                        <textarea name="description" id="editTaskDescription{{ $task->id }}" class="form-control tinymce-editor"
+                                                            rows="4" placeholder="Enter task description...">{{ $task->description }}</textarea>
                                                     </div>
                                                 </div>
                                                 <div class="modal-footer">
@@ -173,6 +174,9 @@
     <script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
     <script src="https://cdn.datatables.net/1.13.6/js/dataTables.bootstrap5.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <!-- TinyMCE -->
+    <script src="https://cdn.tiny.cloud/1/96s1bjh0dbr79aoe5h20vpcele61qmaimpdu7rgotiln64xm/tinymce/6/tinymce.min.js"
+        referrerpolicy="origin"></script>
 
     <script>
         $(document).ready(function() {
@@ -188,6 +192,27 @@
                     info: "Showing _START_ to _END_ of _TOTAL_ tasks",
                     emptyTable: "No tasks found"
                 }
+            });
+
+            // Initialize TinyMCE for all edit task modals
+            tinymce.init({
+                selector: '.tinymce-editor',
+                height: 150,
+                menubar: false,
+                plugins: ['lists', 'link'],
+                toolbar: 'undo redo | bold italic underline | bullist numlist | link | removeformat',
+                content_style: 'body { font-family:Helvetica,Arial,sans-serif; font-size:14px; line-height:1.6; }',
+                setup: function(editor) {
+                    editor.on('change', function() {
+                        editor.save();
+                    });
+                }
+            });
+
+            // Handle form submission with TinyMCE content
+            $('form[method="POST"]').on('submit', function(e) {
+                // Save all TinyMCE editors before form submission
+                tinymce.triggerSave();
             });
 
             // SweetAlert for delete confirmation
