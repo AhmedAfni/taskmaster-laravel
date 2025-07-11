@@ -553,16 +553,28 @@
                 $('#editViewTaskName').addClass('d-none');
                 $('#editViewTaskDescription').addClass('d-none');
 
-                // Remove TinyMCE instance to clean up
-                if (tinymce.get('editViewTaskDescription')) {
-                    tinymce.remove('#editViewTaskDescription');
+                // Safely remove TinyMCE instance
+                const editor = tinymce.get('editViewTaskDescription');
+                if (editor) {
+                    editor.remove();
                 }
+
+                // Clean up any leftover TinyMCE wrapper DOM (important)
+                $('#editViewTaskDescription').siblings('.tox').remove();
+
+                // Reset textarea visibility and content
+                $('#editViewTaskDescription')
+                    .val('') // Optional: clear content if needed
+                    .addClass('d-none') // keep hidden
+                    .removeAttr('style'); // remove any leftover display styles
 
                 // Show/hide buttons
                 $('#viewEditBtn').removeClass('d-none');
                 $('#cancelEditBtn').addClass('d-none');
                 $('#saveEditBtn').addClass('d-none');
             });
+
+
 
             // Save Edit in View Modal
             $('#viewEditForm').on('submit', function(e) {
