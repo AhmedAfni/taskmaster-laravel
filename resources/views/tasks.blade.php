@@ -67,6 +67,43 @@
             font-style: italic;
         }
 
+        #viewTaskDescription img {
+            max-width: 100%;
+            height: auto;
+            border-radius: 0.375rem;
+            margin: 0.5rem 0;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+            cursor: pointer;
+            transition: transform 0.2s ease;
+        }
+
+        #viewTaskDescription img:hover {
+            transform: scale(1.02);
+        }
+
+        /* Image zoom modal styling */
+        .image-zoom-modal {
+            background-color: rgba(0, 0, 0, 0.9);
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 9999;
+            cursor: pointer;
+        }
+
+        .image-zoom-modal img {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            max-width: 95%;
+            max-height: 95%;
+            border-radius: 0.5rem;
+        }
+
         /* TinyMCE container styling */
         .tox-tinymce {
             border-radius: 0.375rem !important;
@@ -320,8 +357,8 @@
                         <div class="mb-3">
                             <label class="form-label fw-bold">Description</label>
                             <div class="border rounded p-3 bg-light" id="viewTaskDescription"
-                                style="min-height: 80px; white-space: normal; line-height: 1.5;"></div>
-                            <textarea class="form-control d-none" id="editViewTaskDescription" rows="4" required></textarea>
+                                style="min-height: 100px; max-height: 500px; overflow-y: auto; white-space: normal; line-height: 1.5; word-wrap: break-word;">
+                            </div>
                         </div>
                     </div>
                     <div class="modal-footer">
@@ -343,6 +380,11 @@
         </div>
     </div>
 
+    <!-- Image Zoom Modal -->
+    <div class="image-zoom-modal" id="imageZoomModal">
+        <img src="" alt="Zoomed Image" id="zoomedImage">
+    </div>
+
     <!-- JS -->
     <script>
         $(function() {
@@ -357,15 +399,86 @@
                 height: 300,
                 menubar: false,
                 plugins: [
-                    'advlist', 'autolink', 'lists', 'link', 'charmap', 'preview',
+                    'advlist', 'autolink', 'lists', 'link', 'image', 'charmap', 'preview',
                     'anchor', 'searchreplace', 'visualblocks', 'code', 'fullscreen',
                     'insertdatetime', 'table', 'wordcount'
                 ],
                 toolbar: 'undo redo | blocks | ' +
                     'bold italic forecolor | alignleft aligncenter ' +
                     'alignright alignjustify | bullist numlist outdent indent | ' +
-                    'removeformat | help',
-                content_style: 'body { font-family:Helvetica,Arial,sans-serif; font-size:14px; line-height:1.6; }',
+                    'link image | removeformat | help',
+                file_picker_types: 'image',
+                file_picker_callback: function(callback, value, meta) {
+                    if (meta.filetype === 'image') {
+                        const input = document.createElement('input');
+                        input.setAttribute('type', 'file');
+                        input.setAttribute('accept', 'image/*');
+                        input.addEventListener('change', function(e) {
+                            const file = e.target.files[0];
+                            if (file) {
+                                // Validate file type
+                                if (!file.type.startsWith('image/')) {
+                                    Swal.fire({
+                                        icon: 'error',
+                                        title: 'Invalid File Type',
+                                        text: 'Please select an image file (JPG, PNG, GIF, etc.)',
+                                        timer: 3000
+                                    });
+                                    return;
+                                }
+
+                                // Check file size (limit to 10MB)
+                                if (file.size > 10485760) {
+                                    Swal.fire({
+                                        icon: 'error',
+                                        title: 'File Too Large',
+                                        text: 'Please select an image smaller than 10MB.',
+                                        timer: 3000
+                                    });
+                                    return;
+                                }
+
+                                const reader = new FileReader();
+                                reader.onload = function(e) {
+                                    const img = new Image();
+                                    img.onload = function() {
+                                        const canvas = document.createElement('canvas');
+                                        const ctx = canvas.getContext('2d');
+
+                                        // Resize image if too large (increased limits)
+                                        let {
+                                            width,
+                                            height
+                                        } = img;
+                                        const maxWidth = 1200;
+                                        const maxHeight = 900;
+
+                                        if (width > maxWidth || height > maxHeight) {
+                                            const ratio = Math.min(maxWidth / width,
+                                                maxHeight / height);
+                                            width *= ratio;
+                                            height *= ratio;
+                                        }
+
+                                        canvas.width = width;
+                                        canvas.height = height;
+                                        ctx.drawImage(img, 0, 0, width, height);
+
+                                        const compressedDataUrl = canvas.toDataURL(
+                                            'image/jpeg', 0.9);
+                                        callback(compressedDataUrl, {
+                                            alt: file.name
+                                        });
+                                    };
+                                    img.src = e.target.result;
+                                };
+                                reader.readAsDataURL(file);
+                            }
+                        });
+                        input.click();
+                    }
+                },
+                content_style: 'body { font-family:Helvetica,Arial,sans-serif; font-size:14px; line-height:1.6; } img { max-width: 100%; height: auto; }',
                 setup: function(editor) {
                     editor.on('change', function() {
                         editor.save();
@@ -379,15 +492,86 @@
                 height: 200,
                 menubar: false,
                 plugins: [
-                    'advlist', 'autolink', 'lists', 'link', 'charmap', 'preview',
+                    'advlist', 'autolink', 'lists', 'link', 'image', 'charmap', 'preview',
                     'anchor', 'searchreplace', 'visualblocks', 'code', 'fullscreen',
                     'insertdatetime', 'table', 'wordcount'
                 ],
                 toolbar: 'undo redo | blocks | ' +
                     'bold italic forecolor | alignleft aligncenter ' +
                     'alignright alignjustify | bullist numlist outdent indent | ' +
-                    'removeformat | help',
-                content_style: 'body { font-family:Helvetica,Arial,sans-serif; font-size:14px }',
+                    'link image | removeformat | help',
+                file_picker_types: 'image',
+                file_picker_callback: function(callback, value, meta) {
+                    if (meta.filetype === 'image') {
+                        const input = document.createElement('input');
+                        input.setAttribute('type', 'file');
+                        input.setAttribute('accept', 'image/*');
+                        input.addEventListener('change', function(e) {
+                            const file = e.target.files[0];
+                            if (file) {
+                                // Validate file type
+                                    if (!file.type.startsWith('image/')) {
+                                    Swal.fire({
+                                        icon: 'error',
+                                        title: 'Invalid File Type',
+                                        text: 'Please select an image file (JPG, PNG, GIF, etc.)',
+                                        timer: 3000
+                                    });
+                                    return;
+                                }
+
+                                // Check file size (limit to 10MB)
+                                if (file.size > 10485760) {
+                                    Swal.fire({
+                                        icon: 'error',
+                                        title: 'File Too Large',
+                                        text: 'Please select an image smaller than 10MB.',
+                                        timer: 3000
+                                    });
+                                    return;
+                                }
+
+                                const reader = new FileReader();
+                                reader.onload = function(e) {
+                                    const img = new Image();
+                                    img.onload = function() {
+                                        const canvas = document.createElement('canvas');
+                                        const ctx = canvas.getContext('2d');
+
+                                        // Resize image if too large (increased limits)
+                                        let {
+                                            width,
+                                            height
+                                        } = img;
+                                        const maxWidth = 1200;
+                                        const maxHeight = 900;
+
+                                        if (width > maxWidth || height > maxHeight) {
+                                            const ratio = Math.min(maxWidth / width,
+                                                maxHeight / height);
+                                            width *= ratio;
+                                            height *= ratio;
+                                        }
+
+                                        canvas.width = width;
+                                        canvas.height = height;
+                                        ctx.drawImage(img, 0, 0, width, height);
+
+                                        const compressedDataUrl = canvas.toDataURL(
+                                            'image/jpeg', 0.9);
+                                        callback(compressedDataUrl, {
+                                            alt: file.name
+                                        });
+                                    };
+                                    img.src = e.target.result;
+                                };
+                                reader.readAsDataURL(file);
+                            }
+                        });
+                        input.click();
+                    }
+                },
+                content_style: 'body { font-family:Helvetica,Arial,sans-serif; font-size:14px } img { max-width: 100%; height: auto; }',
                 setup: function(editor) {
                     editor.on('change', function() {
                         editor.save();
@@ -431,11 +615,24 @@
                         return;
                     }
 
+                    // Check description length for server validation (increased for image support)
+                    if (description.length > 16777215) {
+                        Swal.fire({
+                            icon: 'error',
+                            title: 'Description too long',
+                            text: `Content is ${description.length} characters. Maximum allowed is 16MB. Please reduce content or use smaller images.`,
+                            showConfirmButton: true
+                        });
+                        return;
+                    }
+
                     $.post("{{ route('tasks.store') }}", {
                         name,
                         description,
                         _token: token
                     }, function(res) {
+                        console.log('Task creation response:', res); // Debug log
+
                         if (res.success) {
                             Swal.fire({
                                 icon: 'success',
@@ -444,29 +641,45 @@
                                 showConfirmButton: false
                             });
 
-                            $('#taskList').prepend(`
-                            <li class="list-group-item" id="task-${res.task.id}">
-                                <p class="mb-2">
-                                    <span class="task-text" data-id="${res.task.id}" data-name="${res.task.name}" data-description="${res.task.description}">
-                                        ${res.task.name}
-                                    </span>
-                                </p>
-                                <small class="text-muted d-block ms-1">
-                                    Created: ${formatDate(res.task.created_at)}
-                                </small>
-                                <div class="d-flex mt-2">
-                                    <button class="btn btn-sm btn-outline-info me-2 view-btn" data-id="${res.task.id}" data-name="${res.task.name}" data-description="${res.task.description}" title="View">
-                                        <i class="bi bi-eye"></i>
-                                    </button>
-                                    <button class="btn btn-sm btn-outline-success me-2 complete-btn" data-id="${res.task.id}" title="Complete">
-                                        <i class="bi bi-check2-circle"></i>
-                                    </button>
-                                    <button class="btn btn-sm btn-outline-danger delete-btn" data-id="${res.task.id}">
-                                        <i class="bi bi-trash3"></i>
-                                    </button>
-                                </div>
-                            </li>
-                        `);
+                            // Create DOM elements properly to avoid HTML injection issues
+                            const $taskItem = $(`
+                                <li class="list-group-item" id="task-${res.task.id}">
+                                    <p class="mb-2">
+                                        <span class="task-text"></span>
+                                    </p>
+                                    <small class="text-muted d-block ms-1">
+                                        Created: ${formatDate(res.task.created_at)}
+                                    </small>
+                                    <div class="d-flex mt-2">
+                                        <button class="btn btn-sm btn-outline-info me-2 view-btn" title="View">
+                                            <i class="bi bi-eye"></i>
+                                        </button>
+                                        <button class="btn btn-sm btn-outline-success me-2 complete-btn" title="Complete">
+                                            <i class="bi bi-check2-circle"></i>
+                                        </button>
+                                        <button class="btn btn-sm btn-outline-danger delete-btn">
+                                            <i class="bi bi-trash3"></i>
+                                        </button>
+                                    </div>
+                                </li>
+                            `);
+
+                            // Set data attributes and text safely
+                            $taskItem.find('.task-text')
+                                .text(res.task.name)
+                                .data('id', res.task.id)
+                                .data('name', res.task.name)
+                                .data('description', res.task.description);
+
+                            $taskItem.find('.view-btn')
+                                .data('id', res.task.id)
+                                .data('name', res.task.name)
+                                .data('description', res.task.description);
+
+                            $taskItem.find('.complete-btn, .delete-btn')
+                                .data('id', res.task.id);
+
+                            $('#taskList').prepend($taskItem);
                             $('#taskName').val('');
                             tinymce.get('taskDescription').setContent('');
                             addModal.hide();
@@ -474,6 +687,31 @@
                             // Update task counters
                             updateTaskCounters();
                         }
+                    }).fail(function(xhr) {
+                        console.error('Error details:', xhr.responseText);
+                        let errorMessage = 'Failed to add task';
+
+                        if (xhr.status === 422) {
+                            try {
+                                const errors = JSON.parse(xhr.responseText);
+                                if (errors.errors) {
+                                    errorMessage = Object.values(errors.errors).flat().join(
+                                        ', ');
+                                } else if (errors.message) {
+                                    errorMessage = errors.message;
+                                }
+                            } catch (e) {
+                                errorMessage = 'Validation error - content may be too large';
+                            }
+                        }
+
+                        Swal.fire({
+                            icon: 'error',
+                            title: 'Error',
+                            text: errorMessage,
+                            timer: 4000,
+                            showConfirmButton: true
+                        });
                     });
                 }
             });
@@ -484,12 +722,25 @@
                 const name = $(this).data('name');
                 const description = $(this).data('description');
 
+                console.log('View button clicked:', {
+                    id,
+                    name,
+                    description
+                }); // Debug log
+
                 // Check if task is completed by looking at the parent task item
                 const taskItem = $(`#task-${id}`);
                 const isCompleted = taskItem.find('.completed').length > 0;
 
                 $('#viewTaskName').text(name);
-                $('#viewTaskDescription').html(description);
+
+                // Safely set the description content
+                if (description && description.trim() !== '') {
+                    $('#viewTaskDescription').html(description);
+                } else {
+                    $('#viewTaskDescription').html(
+                        '<p class="text-muted"><em>No description available</em></p>');
+                }
 
                 // Store task data for edit functionality
                 $('#viewEditBtn').data('id', id).data('name', name).data('description', description);
@@ -497,11 +748,37 @@
                 // Hide/show edit button based on completion status
                 if (isCompleted) {
                     $('#viewEditBtn').hide();
+                    $('#viewDescriptionInfo').html(
+                        '<i class="bi bi-check-circle-fill text-success"></i> Task completed'
+                    );
                 } else {
                     $('#viewEditBtn').show();
+                    $('#viewDescriptionInfo')
                 }
 
+                // Add image click handlers for zoom functionality
+                setTimeout(function() {
+                    $('#viewTaskDescription img').off('click').on('click', function(e) {
+                        e.stopPropagation();
+                        const imgSrc = $(this).attr('src');
+                        $('#zoomedImage').attr('src', imgSrc);
+                        $('#imageZoomModal').fadeIn(200);
+                    });
+                }, 100);
+
                 viewModal.show();
+            });
+
+            // Image zoom modal close functionality
+            $('#imageZoomModal').on('click', function() {
+                $(this).fadeOut(200);
+            });
+
+            // Keyboard support for image zoom
+            $(document).on('keydown', function(e) {
+                if (e.key === 'Escape' && $('#imageZoomModal').is(':visible')) {
+                    $('#imageZoomModal').fadeOut(200);
+                }
             });
 
             // Edit from View Modal
@@ -516,18 +793,96 @@
                 if (!tinymce.get('editViewTaskDescription')) {
                     tinymce.init({
                         selector: '#editViewTaskDescription',
-                        height: 200,
+                        height: 300,
                         menubar: false,
                         plugins: [
-                            'advlist', 'autolink', 'lists', 'link', 'charmap', 'preview',
+                            'advlist', 'autolink', 'lists', 'link', 'image', 'charmap',
+                            'preview',
                             'anchor', 'searchreplace', 'visualblocks', 'code', 'fullscreen',
                             'insertdatetime', 'table', 'wordcount'
                         ],
                         toolbar: 'undo redo | blocks | ' +
                             'bold italic forecolor | alignleft aligncenter ' +
                             'alignright alignjustify | bullist numlist outdent indent | ' +
-                            'removeformat | help',
-                        content_style: 'body { font-family:Helvetica,Arial,sans-serif; font-size:14px }',
+                            'link image | removeformat | help',
+                        file_picker_types: 'image',
+                        file_picker_callback: function(callback, value, meta) {
+                            if (meta.filetype === 'image') {
+                                const input = document.createElement('input');
+                                input.setAttribute('type', 'file');
+                                input.setAttribute('accept', 'image/*');
+                                input.addEventListener('change', function(e) {
+                                    const file = e.target.files[0];
+                                    if (file) {
+                                        // Validate file type
+                                        if (!file.type.startsWith('image/')) {
+                                            Swal.fire({
+                                                icon: 'error',
+                                                title: 'Invalid File Type',
+                                                text: 'Please select an image file (JPG, PNG, GIF, etc.)',
+                                                timer: 3000
+                                            });
+                                            return;
+                                        }
+
+                                        // Check file size (limit to 10MB)
+                                        if (file.size > 10485760) {
+                                            Swal.fire({
+                                                icon: 'error',
+                                                title: 'File Too Large',
+                                                text: 'Please select an image smaller than 10MB.',
+                                                timer: 3000
+                                            });
+                                            return;
+                                        }
+
+                                        const reader = new FileReader();
+                                        reader.onload = function(e) {
+                                            const img = new Image();
+                                            img.onload = function() {
+                                                const canvas = document
+                                                    .createElement('canvas');
+                                                const ctx = canvas.getContext(
+                                                    '2d');
+
+                                                // Resize image if too large (increased limits)
+                                                let {
+                                                    width,
+                                                    height
+                                                } = img;
+                                                const maxWidth = 1200;
+                                                const maxHeight = 900;
+
+                                                if (width > maxWidth || height >
+                                                    maxHeight) {
+                                                    const ratio = Math.min(
+                                                        maxWidth / width,
+                                                        maxHeight / height);
+                                                    width *= ratio;
+                                                    height *= ratio;
+                                                }
+
+                                                canvas.width = width;
+                                                canvas.height = height;
+                                                ctx.drawImage(img, 0, 0, width,
+                                                    height);
+
+                                                const compressedDataUrl = canvas
+                                                    .toDataURL(
+                                                        'image/jpeg', 0.9);
+                                                callback(compressedDataUrl, {
+                                                    alt: file.name
+                                                });
+                                            };
+                                            img.src = e.target.result;
+                                        };
+                                        reader.readAsDataURL(file);
+                                    }
+                                });
+                                input.click();
+                            }
+                        },
+                        content_style: 'body { font-family:Helvetica,Arial,sans-serif; font-size:14px } img { max-width: 100%; height: auto; }',
                         setup: function(editor) {
                             editor.on('init', function() {
                                 // Set content after initialization
@@ -601,16 +956,44 @@
                     return;
                 }
 
+                // Check content length for server validation limit
+                if (description.length > 16777215) {
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'Content Too Large',
+                        html: `
+                            <p>Description is <strong>${description.length.toLocaleString()}</strong> characters.</p>
+                            <p>Maximum allowed: <strong>16,777,215</strong> characters (~16MB).</p>
+                            <p>Please reduce content size or compress images further.</p>
+                        `,
+                        showConfirmButton: true
+                    });
+                    return;
+                }
+
+                // Show loading indicator for large content
+                const loadingToast = Swal.fire({
+                    title: 'Saving...',
+                    text: 'Processing large content with images',
+                    allowOutsideClick: false,
+                    didOpen: () => {
+                        Swal.showLoading();
+                    }
+                });
+
                 $.post(`tasks/${id}/edit`, {
                     _token: token,
                     name,
                     description
                 }, function(res) {
+                    loadingToast.close();
+
                     if (res.success) {
                         Swal.fire({
                             icon: 'success',
-                            title: 'Task Updated!',
-                            timer: 2000,
+                            title: 'Task Updated Successfully!',
+                            text: 'All changes including images have been saved.',
+                            timer: 2500,
                             showConfirmButton: false
                         });
 
@@ -641,7 +1024,41 @@
                         $('#viewEditBtn').removeClass('d-none');
                         $('#cancelEditBtn').addClass('d-none');
                         $('#saveEditBtn').addClass('d-none');
+
+                        // Re-add image click handlers
+                        setTimeout(function() {
+                            $('#viewTaskDescription img').off('click').on('click', function(
+                                e) {
+                                e.stopPropagation();
+                                const imgSrc = $(this).attr('src');
+                                $('#zoomedImage').attr('src', imgSrc);
+                                $('#imageZoomModal').fadeIn(200);
+                            });
+                        }, 100);
                     }
+                }).fail(function(xhr) {
+                    loadingToast.close();
+
+                    let errorMessage = 'Failed to update task';
+                    if (xhr.status === 422) {
+                        try {
+                            const errors = JSON.parse(xhr.responseText);
+                            if (errors.errors) {
+                                errorMessage = Object.values(errors.errors).flat().join(', ');
+                            } else if (errors.message) {
+                                errorMessage = errors.message;
+                            }
+                        } catch (e) {
+                            errorMessage = 'Content validation error - may be too large';
+                        }
+                    }
+
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'Update Failed',
+                        text: errorMessage,
+                        showConfirmButton: true
+                    });
                 });
             });
 
@@ -666,50 +1083,98 @@
                         const description = res.description; // Get description from server response
 
                         if (res.completed) {
-                            taskItem.html(`
-                            <p class="mb-2 completed">${name}</p>
-                            <small class="text-muted d-block ms-1">
-                                Created: ${formatDate(res.created_at)} | Completed: ${formatDate(res.completed_at)}
-                            </small>
-                            <div class="d-flex mt-2">
-                                <button class="btn btn-sm btn-outline-info me-2 view-btn" data-id="${id}" data-name="${name}" data-description="${description}" title="View">
-                                    <i class="bi bi-eye"></i>
-                                </button>
-                                <button class="btn btn-sm btn-outline-success me-2 complete-btn" data-id="${id}" title="Undo">
-                                    <i class="bi bi-arrow-counterclockwise"></i>
-                                </button>
-                                <button class="btn btn-sm btn-outline-danger delete-btn" data-id="${id}">
-                                    <i class="bi bi-trash3"></i>
-                                </button>
-                            </div>
-                        `);
+                            // Create completed task structure
+                            const $completedTask = $(`
+                                <li class="list-group-item" id="task-${id}">
+                                    <p class="mb-2 completed"></p>
+                                    <small class="text-muted d-block ms-1"></small>
+                                    <div class="d-flex mt-2">
+                                        <button class="btn btn-sm btn-outline-info me-2 view-btn" title="View">
+                                            <i class="bi bi-eye"></i>
+                                        </button>
+                                        <button class="btn btn-sm btn-outline-success me-2 complete-btn" title="Undo">
+                                            <i class="bi bi-arrow-counterclockwise"></i>
+                                        </button>
+                                        <button class="btn btn-sm btn-outline-danger delete-btn">
+                                            <i class="bi bi-trash3"></i>
+                                        </button>
+                                    </div>
+                                </li>
+                            `);
+
+                            // Set text content and data attributes safely
+                            $completedTask.find('p.completed').text(name);
+                            $completedTask.find('small').text(
+                                `Created: ${formatDate(res.created_at)} | Completed: ${formatDate(res.completed_at)}`
+                            );
+
+                            // Set data attributes for buttons
+                            $completedTask.find('.view-btn')
+                                .data('id', id)
+                                .data('name', name)
+                                .data('description', description);
+
+                            $completedTask.find('.complete-btn, .delete-btn')
+                                .data('id', id);
+
+                            // Replace the entire task item
+                            taskItem.replaceWith($completedTask);
                         } else {
-                            taskItem.html(`
-                            <p class="mb-2">
-                                <span class="task-text" data-id="${id}" data-name="${name}" data-description="${description}">
-                                    ${name}
-                                </span>
-                            </p>
-                            <small class="text-muted d-block ms-1">
-                                Created: ${formatDate(res.created_at)}
-                            </small>
-                            <div class="d-flex mt-2">
-                                <button class="btn btn-sm btn-outline-info me-2 view-btn" data-id="${id}" data-name="${name}" data-description="${description}" title="View">
-                                    <i class="bi bi-eye"></i>
-                                </button>
-                                <button class="btn btn-sm btn-outline-success me-2 complete-btn" data-id="${id}" title="Complete">
-                                    <i class="bi bi-check2-circle"></i>
-                                </button>
-                                <button class="btn btn-sm btn-outline-danger delete-btn" data-id="${id}">
-                                    <i class="bi bi-trash3"></i>
-                                </button>
-                            </div>
-                        `);
+                            // Create pending task structure
+                            const $pendingTask = $(`
+                                <li class="list-group-item" id="task-${id}">
+                                    <p class="mb-2">
+                                        <span class="task-text"></span>
+                                    </p>
+                                    <small class="text-muted d-block ms-1"></small>
+                                    <div class="d-flex mt-2">
+                                        <button class="btn btn-sm btn-outline-info me-2 view-btn" title="View">
+                                            <i class="bi bi-eye"></i>
+                                        </button>
+                                        <button class="btn btn-sm btn-outline-success me-2 complete-btn" title="Complete">
+                                            <i class="bi bi-check2-circle"></i>
+                                        </button>
+                                        <button class="btn btn-sm btn-outline-danger delete-btn">
+                                            <i class="bi bi-trash3"></i>
+                                        </button>
+                                    </div>
+                                </li>
+                            `);
+
+                            // Set text content and data attributes safely
+                            $pendingTask.find('.task-text')
+                                .text(name)
+                                .data('id', id)
+                                .data('name', name)
+                                .data('description', description);
+
+                            $pendingTask.find('small').text(
+                                `Created: ${formatDate(res.created_at)}`);
+
+                            // Set data attributes for buttons
+                            $pendingTask.find('.view-btn')
+                                .data('id', id)
+                                .data('name', name)
+                                .data('description', description);
+
+                            $pendingTask.find('.complete-btn, .delete-btn')
+                                .data('id', id);
+
+                            // Replace the entire task item
+                            taskItem.replaceWith($pendingTask);
                         }
 
                         // Update task counters
                         updateTaskCounters();
                     }
+                }).fail(function(xhr) {
+                    console.error('Complete/Undo error:', xhr.responseText);
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'Operation Failed',
+                        text: 'Failed to update task status. Please try again.',
+                        showConfirmButton: true
+                    });
                 });
             });
 

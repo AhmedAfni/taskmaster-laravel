@@ -37,7 +37,7 @@ class AdminController extends Controller
     {
         $request->validate([
             'name' => 'required|string|max:255',
-            'description' => 'required|string|max:1000'
+            'description' => 'required|string|max:16777215'
         ]);
 
         $task->update([
@@ -64,7 +64,7 @@ class AdminController extends Controller
         $request->validate([
             'user_id' => 'required|exists:users,id',
             'task_name' => 'required|string|max:255',
-            'task_description' => 'required|string|max:1000',
+            'task_description' => 'required|string|max:16777215',
         ]);
 
         Task::create([

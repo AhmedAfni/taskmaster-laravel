@@ -23,34 +23,54 @@ class TaskController extends Controller
 
     public function store(Request $request)
     {
-        $request->validate([
-            'name' => 'required|string|max:255',
-            'description' => 'required|string|max:1000'
-        ]);
-
-        $task = Task::create([
-            'name' => $request->name,
-            'description' => $request->description,
-            'user_id' => Auth::id(),
-            'completed' => false,
-            'completed_at' => null
-        ]);
-
-        if ($request->expectsJson()) {
-            return response()->json([
-                'success' => true,
-                'task' => [
-                    'id' => $task->id,
-                    'name' => $task->name,
-                    'description' => $task->description,
-                    'created_at' => $task->created_at->format('Y-m-d H:i:s'),
-                    'completed' => $task->completed,
-                    'completed_at' => $task->completed_at
-                ]
+        try {
+            $request->validate([
+                'name' => 'required|string|max:255',
+                'description' => 'required|string|max:16777215'
             ]);
-        }
 
-        return redirect('/');
+            $task = Task::create([
+                'name' => $request->name,
+                'description' => $request->description,
+                'user_id' => Auth::id(),
+                'completed' => false,
+                'completed_at' => null
+            ]);
+
+            if ($request->expectsJson()) {
+                return response()->json([
+                    'success' => true,
+                    'task' => [
+                        'id' => $task->id,
+                        'name' => $task->name,
+                        'description' => $task->description,
+                        'created_at' => $task->created_at->format('Y-m-d H:i:s'),
+                        'completed' => $task->completed,
+                        'completed_at' => $task->completed_at
+                    ]
+                ]);
+            }
+
+            return redirect('/');
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            if ($request->expectsJson()) {
+                return response()->json([
+                    'success' => false,
+                    'errors' => $e->errors(),
+                    'message' => 'Validation failed'
+                ], 422);
+            }
+            throw $e;
+        } catch (\Exception $e) {
+            \Log::error('Task creation failed: ' . $e->getMessage());
+            if ($request->expectsJson()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Failed to create task: ' . $e->getMessage()
+                ], 500);
+            }
+            throw $e;
+        }
     }
 
     public function update(Task $task, Request $request)
@@ -97,7 +117,7 @@ class TaskController extends Controller
 
         $request->validate([
             'name' => 'required|string|max:255',
-            'description' => 'required|string|max:1000'
+            'description' => 'required|string|max:16777215'
         ]);
 
         $task->update([
