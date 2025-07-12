@@ -195,7 +195,6 @@
         </div>
     </div>
 
-
     <!-- View Task Modal -->
     <div class="modal fade" id="viewTaskModal" tabindex="-1" aria-labelledby="viewTaskModalLabel" aria-hidden="true">
         <div class="modal-dialog">

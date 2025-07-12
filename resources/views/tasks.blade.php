@@ -725,7 +725,7 @@
                 console.log('View button clicked:', {
                     id,
                     name,
-                    description
+                    description 
                 }); // Debug log
 
                 // Check if task is completed by looking at the parent task item
