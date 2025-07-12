@@ -226,7 +226,7 @@
 
     <!-- Edit Task Modal -->
     <div class="modal fade" id="editTaskModal" tabindex="-1" aria-labelledby="editTaskModalLabel" aria-hidden="true">
-        <div class="modal-dialog modal-lg">
+        <div class="modal-dialog modal-xl">
             <form method="POST" id="editTaskForm">
                 @csrf
                 <div class="modal-content">
@@ -391,8 +391,14 @@
                 selector: '#task_description',
                 height: 120,
                 menubar: false,
-                plugins: ['lists', 'link'],
-                toolbar: 'undo redo | bold italic underline | bullist numlist | link | removeformat',
+                plugins: ['advlist', 'autolink', 'lists', 'link', 'charmap', 'preview',
+                    'anchor', 'searchreplace', 'visualblocks', 'code', 'fullscreen',
+                    'insertdatetime', 'table', 'wordcount'
+                ],
+                toolbar: 'undo redo | blocks | ' +
+                    'bold italic forecolor | alignleft aligncenter ' +
+                    'alignright alignjustify | bullist numlist outdent indent | ' +
+                    'removeformat | help',
                 content_style: 'body { font-family:Helvetica,Arial,sans-serif; font-size:14px; line-height:1.6; }',
                 setup: function(editor) {
                     editor.on('change', function() {
@@ -406,8 +412,14 @@
                 selector: '#editTaskDescription',
                 height: 200,
                 menubar: false,
-                plugins: ['lists', 'link'],
-                toolbar: 'undo redo | bold italic underline | bullist numlist | link | removeformat',
+                plugins: ['advlist', 'autolink', 'lists', 'link', 'charmap', 'preview',
+                    'anchor', 'searchreplace', 'visualblocks', 'code', 'fullscreen',
+                    'insertdatetime', 'table', 'wordcount'
+                ],
+                toolbar: 'undo redo | blocks | ' +
+                    'bold italic forecolor | alignleft aligncenter ' +
+                    'alignright alignjustify | bullist numlist outdent indent | ' +
+                    'removeformat | help',
                 content_style: 'body { font-family:Helvetica,Arial,sans-serif; font-size:14px; line-height:1.6; }',
                 setup: function(editor) {
                     editor.on('change', function() {

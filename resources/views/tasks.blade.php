@@ -241,7 +241,7 @@
 
     <!-- Add Task Modal -->
     <div class="modal fade" id="addTaskModal" tabindex="-1">
-        <div class="modal-dialog modal-lg">
+        <div class="modal-dialog modal-xl">
             <form id="addTaskForm" class="modal-content">
                 <div class="modal-header">
                     <h5 class="modal-title">Add Task</h5>
@@ -272,7 +272,7 @@
 
     <!-- Edit Task Modal -->
     <div class="modal fade" id="editTaskModal" tabindex="-1">
-        <div class="modal-dialog">
+        <div class="modal-dialog modal-xl">
             <form id="modalEditForm" class="modal-content">
                 <div class="modal-header">
                     <h5 class="modal-title">Edit Task</h5>
@@ -304,7 +304,7 @@
 
     <!-- View Task Modal -->
     <div class="modal fade" id="viewTaskModal" tabindex="-1">
-        <div class="modal-dialog">
+        <div class="modal-dialog modal-xl">
             <div class="modal-content">
                 <div class="modal-header">
                     <h5 class="modal-title">View Task</h5>
@@ -357,9 +357,14 @@
                 height: 300,
                 menubar: false,
                 plugins: [
-                    'lists', 'link', 'autolink'
+                    'advlist', 'autolink', 'lists', 'link', 'charmap', 'preview',
+                    'anchor', 'searchreplace', 'visualblocks', 'code', 'fullscreen',
+                    'insertdatetime', 'table', 'wordcount'
                 ],
-                toolbar: 'undo redo | bold italic underline | bullist numlist | link | removeformat',
+                toolbar: 'undo redo | blocks | ' +
+                    'bold italic forecolor | alignleft aligncenter ' +
+                    'alignright alignjustify | bullist numlist outdent indent | ' +
+                    'removeformat | help',
                 content_style: 'body { font-family:Helvetica,Arial,sans-serif; font-size:14px; line-height:1.6; }',
                 setup: function(editor) {
                     editor.on('change', function() {
