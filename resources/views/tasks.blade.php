@@ -11,10 +11,8 @@
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css" rel="stylesheet">
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/jquery-validation@1.19.5/dist/jquery.validate.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-    <script src="https://cdn.tiny.cloud/1/96s1bjh0dbr79aoe5h20vpcele61qmaimpdu7rgotiln64xm/tinymce/6/tinymce.min.js"
-        referrerpolicy="origin"></script>
+    <script src="https://cdn.jsdelivr.net/npm/tinymce@6/tinymce.min.js" referrerpolicy="origin"></script>
 
     <style>
         .completed {
@@ -168,6 +166,19 @@
 
         .alert ul li {
             margin-bottom: 0.25rem;
+        }
+
+        /* Task text clickable styling */
+        .task-text {
+            cursor: pointer;
+            color: #0d6efd;
+            text-decoration: none;
+            transition: color 0.3s ease;
+        }
+
+        .task-text:hover {
+            color: #0a58ca;
+            text-decoration: underline;
         }
     </style>
 </head>
@@ -359,6 +370,7 @@
                             <div class="border rounded p-3 bg-light" id="viewTaskDescription"
                                 style="min-height: 100px; max-height: 500px; overflow-y: auto; white-space: normal; line-height: 1.5; word-wrap: break-word;">
                             </div>
+                            <textarea class="form-control d-none" id="editViewTaskDescription" rows="5"></textarea>
                         </div>
                     </div>
                     <div class="modal-footer">
@@ -389,195 +401,128 @@
     <script>
         $(function() {
             const token = $('meta[name="csrf-token"]').attr('content');
+
             const addModal = new bootstrap.Modal(document.getElementById('addTaskModal'));
             const editModal = new bootstrap.Modal(document.getElementById('editTaskModal'));
             const viewModal = new bootstrap.Modal(document.getElementById('viewTaskModal'));
 
-            // Initialize TinyMCE for Add Task Modal
-            tinymce.init({
-                selector: '#taskDescription',
-                height: 300,
-                menubar: false,
-                plugins: [
-                    'advlist', 'autolink', 'lists', 'link', 'image', 'charmap', 'preview',
-                    'anchor', 'searchreplace', 'visualblocks', 'code', 'fullscreen',
-                    'insertdatetime', 'table', 'wordcount'
-                ],
-                toolbar: 'undo redo | blocks | ' +
-                    'bold italic forecolor | alignleft aligncenter ' +
-                    'alignright alignjustify | bullist numlist outdent indent | ' +
-                    'link image | removeformat | help',
-                file_picker_types: 'image',
-                file_picker_callback: function(callback, value, meta) {
-                    if (meta.filetype === 'image') {
-                        const input = document.createElement('input');
-                        input.setAttribute('type', 'file');
-                        input.setAttribute('accept', 'image/*');
-                        input.addEventListener('change', function(e) {
-                            const file = e.target.files[0];
-                            if (file) {
-                                // Validate file type
-                                if (!file.type.startsWith('image/')) {
-                                    Swal.fire({
-                                        icon: 'error',
-                                        title: 'Invalid File Type',
-                                        text: 'Please select an image file (JPG, PNG, GIF, etc.)',
-                                        timer: 3000
-                                    });
-                                    return;
-                                }
-
-                                // Check file size (limit to 10MB)
-                                if (file.size > 10485760) {
-                                    Swal.fire({
-                                        icon: 'error',
-                                        title: 'File Too Large',
-                                        text: 'Please select an image smaller than 10MB.',
-                                        timer: 3000
-                                    });
-                                    return;
-                                }
-
-                                const reader = new FileReader();
-                                reader.onload = function(e) {
-                                    const img = new Image();
-                                    img.onload = function() {
-                                        const canvas = document.createElement('canvas');
-                                        const ctx = canvas.getContext('2d');
-
-                                        // Resize image if too large (increased limits)
-                                        let {
-                                            width,
-                                            height
-                                        } = img;
-                                        const maxWidth = 1200;
-                                        const maxHeight = 900;
-
-                                        if (width > maxWidth || height > maxHeight) {
-                                            const ratio = Math.min(maxWidth / width,
-                                                maxHeight / height);
-                                            width *= ratio;
-                                            height *= ratio;
-                                        }
-
-                                        canvas.width = width;
-                                        canvas.height = height;
-                                        ctx.drawImage(img, 0, 0, width, height);
-
-                                        const compressedDataUrl = canvas.toDataURL(
-                                            'image/jpeg', 0.9);
-                                        callback(compressedDataUrl, {
-                                            alt: file.name
-                                        });
-                                    };
-                                    img.src = e.target.result;
-                                };
-                                reader.readAsDataURL(file);
-                            }
-                        });
-                        input.click();
-                    }
-                },
-                content_style: 'body { font-family:Helvetica,Arial,sans-serif; font-size:14px; line-height:1.6; } img { max-width: 100%; height: auto; }',
-                setup: function(editor) {
-                    editor.on('change', function() {
-                        editor.save();
-                    });
-                }
-            });
-
-            // Initialize TinyMCE for Edit Task Modal
-            tinymce.init({
-                selector: '#editTaskDescription',
-                height: 200,
-                menubar: false,
-                plugins: [
-                    'advlist', 'autolink', 'lists', 'link', 'image', 'charmap', 'preview',
-                    'anchor', 'searchreplace', 'visualblocks', 'code', 'fullscreen',
-                    'insertdatetime', 'table', 'wordcount'
-                ],
-                toolbar: 'undo redo | blocks | ' +
-                    'bold italic forecolor | alignleft aligncenter ' +
-                    'alignright alignjustify | bullist numlist outdent indent | ' +
-                    'link image | removeformat | help',
-                file_picker_types: 'image',
-                file_picker_callback: function(callback, value, meta) {
-                    if (meta.filetype === 'image') {
-                        const input = document.createElement('input');
-                        input.setAttribute('type', 'file');
-                        input.setAttribute('accept', 'image/*');
-                        input.addEventListener('change', function(e) {
-                            const file = e.target.files[0];
-                            if (file) {
-                                // Validate file type
+            // Initialize TinyMCE for description fields with error handling
+            if (typeof tinymce !== 'undefined') {
+                tinymce.init({
+                    selector: '#taskDescription, #editTaskDescription',
+                    height: 300,
+                    menubar: false,
+                    plugins: [
+                        'advlist', 'autolink', 'lists', 'link', 'image', 'charmap', 'preview',
+                        'anchor', 'searchreplace', 'visualblocks', 'code', 'fullscreen',
+                        'insertdatetime', 'media', 'table', 'help', 'wordcount'
+                    ],
+                    toolbar: 'undo redo | blocks | bold italic underline strikethrough | ' +
+                        'alignleft aligncenter alignright alignjustify | ' +
+                        'bullist numlist outdent indent | link image | removeformat | help',
+                    file_picker_types: 'image',
+                    file_picker_callback: function(callback, value, meta) {
+                        if (meta.filetype === 'image') {
+                            const input = document.createElement('input');
+                            input.setAttribute('type', 'file');
+                            input.setAttribute('accept', 'image/*');
+                            input.addEventListener('change', function(e) {
+                                const file = e.target.files[0];
+                                if (file) {
+                                    // Validate file type
                                     if (!file.type.startsWith('image/')) {
-                                    Swal.fire({
-                                        icon: 'error',
-                                        title: 'Invalid File Type',
-                                        text: 'Please select an image file (JPG, PNG, GIF, etc.)',
-                                        timer: 3000
-                                    });
-                                    return;
-                                }
-
-                                // Check file size (limit to 10MB)
-                                if (file.size > 10485760) {
-                                    Swal.fire({
-                                        icon: 'error',
-                                        title: 'File Too Large',
-                                        text: 'Please select an image smaller than 10MB.',
-                                        timer: 3000
-                                    });
-                                    return;
-                                }
-
-                                const reader = new FileReader();
-                                reader.onload = function(e) {
-                                    const img = new Image();
-                                    img.onload = function() {
-                                        const canvas = document.createElement('canvas');
-                                        const ctx = canvas.getContext('2d');
-
-                                        // Resize image if too large (increased limits)
-                                        let {
-                                            width,
-                                            height
-                                        } = img;
-                                        const maxWidth = 1200;
-                                        const maxHeight = 900;
-
-                                        if (width > maxWidth || height > maxHeight) {
-                                            const ratio = Math.min(maxWidth / width,
-                                                maxHeight / height);
-                                            width *= ratio;
-                                            height *= ratio;
-                                        }
-
-                                        canvas.width = width;
-                                        canvas.height = height;
-                                        ctx.drawImage(img, 0, 0, width, height);
-
-                                        const compressedDataUrl = canvas.toDataURL(
-                                            'image/jpeg', 0.9);
-                                        callback(compressedDataUrl, {
-                                            alt: file.name
+                                        Swal.fire({
+                                            icon: 'error',
+                                            title: 'Invalid File Type',
+                                            text: 'Please select an image file (JPG, PNG, GIF, etc.)',
+                                            timer: 3000
                                         });
-                                    };
-                                    img.src = e.target.result;
-                                };
-                                reader.readAsDataURL(file);
-                            }
+                                        return;
+                                    }
+
+                                    // Check file size (limit to 10MB)
+                                    if (file.size > 10485760) {
+                                        Swal.fire({
+                                            icon: 'error',
+                                            title: 'File Too Large',
+                                            text: 'Please select an image smaller than 10MB.',
+                                            timer: 3000
+                                        });
+                                        return;
+                                    }
+
+                                    // Create FormData and upload to server
+                                    const formData = new FormData();
+                                    formData.append('image', file);
+                                    formData.append('_token', token);
+
+                                    // Show loading indicator
+                                    Swal.fire({
+                                        title: 'Uploading image...',
+                                        allowOutsideClick: false,
+                                        didOpen: () => {
+                                            Swal.showLoading();
+                                        }
+                                    }); // Upload to server
+                                    fetch('{{ route('upload.image') }}', {
+                                            method: 'POST',
+                                            body: formData,
+                                            credentials: 'same-origin',
+                                            headers: {
+                                                'X-Requested-With': 'XMLHttpRequest'
+                                            }
+                                        })
+                                        .then(response => {
+                                            if (!response.ok) {
+                                                throw new Error(
+                                                    `HTTP error! status: ${response.status}`
+                                                    );
+                                            }
+                                            return response.json();
+                                        })
+                                        .then(data => {
+                                            Swal.close();
+                                            if (data.success) {
+                                                callback(data.url, {
+                                                    alt: file.name
+                                                });
+                                            } else {
+                                                Swal.fire({
+                                                    icon: 'error',
+                                                    title: 'Upload Failed',
+                                                    text: data.message ||
+                                                        'Failed to upload image',
+                                                    timer: 3000
+                                                });
+                                            }
+                                        })
+                                        .catch(error => {
+                                            Swal.close();
+                                            console.error('Upload error:', error);
+                                            Swal.fire({
+                                                icon: 'error',
+                                                title: 'Upload Error',
+                                                text: 'Network error occurred while uploading image',
+                                                timer: 3000
+                                            });
+                                        });
+                                }
+                            });
+                            input.click();
+                        }
+                    },
+                    content_style: 'body { font-family: Arial, sans-serif; font-size: 14px; line-height:1.6; } img { max-width: 100%; height: auto; }',
+                    branding: false,
+                    promotion: false,
+                    setup: function(editor) {
+                        editor.on('change', function() {
+                            editor.save();
                         });
-                        input.click();
                     }
-                },
-                content_style: 'body { font-family:Helvetica,Arial,sans-serif; font-size:14px } img { max-width: 100%; height: auto; }',
-                setup: function(editor) {
-                    editor.on('change', function() {
-                        editor.save();
-                    });
-                }
-            });
+                });
+            } else {
+                console.warn('TinyMCE is not loaded. Rich text editing will not be available.');
+            }
 
             function formatDate(dateStr) {
                 const d = new Date(dateStr);
@@ -599,121 +544,234 @@
             }
 
             // Add Task
-            $('#addTaskForm').validate({
-                submitHandler: function(form, e) {
-                    e.preventDefault();
-                    const name = $('#taskName').val().trim();
-                    const description = tinymce.get('taskDescription').getContent();
+            $('#addTaskForm').on('submit', function(e) {
+                e.preventDefault();
+                const name = $('#taskName').val().trim();
 
-                    if (!description.trim()) {
+                // Get description from TinyMCE if available, otherwise from textarea
+                let description = '';
+                const tinyMCEInstance = tinymce.get('taskDescription');
+                if (tinyMCEInstance) {
+                    description = tinyMCEInstance.getContent().trim();
+                } else {
+                    description = $('#taskDescription').val().trim();
+                }
+
+                if (!name || !description) {
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'Please fill in all fields',
+                        timer: 2000,
+                        showConfirmButton: false
+                    });
+                    return;
+                }
+
+                $.post("{{ route('tasks.store') }}", {
+                    name,
+                    description,
+                    _token: token
+                }, function(res) {
+                    if (res.success) {
                         Swal.fire({
-                            icon: 'error',
-                            title: 'Please enter a description',
+                            icon: 'success',
+                            title: 'Task Added!',
                             timer: 2000,
                             showConfirmButton: false
                         });
-                        return;
-                    }
 
-                    // Check description length for server validation (increased for image support)
-                    if (description.length > 16777215) {
-                        Swal.fire({
-                            icon: 'error',
-                            title: 'Description too long',
-                            text: `Content is ${description.length} characters. Maximum allowed is 16MB. Please reduce content or use smaller images.`,
-                            showConfirmButton: true
-                        });
-                        return;
-                    }
+                        // Create DOM elements properly
+                        const $taskItem = $(`
+                            <li class="list-group-item" id="task-${res.task.id}">
+                                <p class="mb-2">
+                                    <span class="task-text">${res.task.name}</span>
+                                </p>
+                                <small class="text-muted d-block ms-1">
+                                    Created: ${formatDate(res.task.created_at)}
+                                </small>
+                                <div class="d-flex mt-2">
+                                    <button class="btn btn-sm btn-outline-info me-2 view-btn" title="View">
+                                        <i class="bi bi-eye"></i>
+                                    </button>
+                                    <button class="btn btn-sm btn-outline-success me-2 complete-btn" title="Complete">
+                                        <i class="bi bi-check2-circle"></i>
+                                    </button>
+                                    <button class="btn btn-sm btn-outline-danger delete-btn">
+                                        <i class="bi bi-trash3"></i>
+                                    </button>
+                                </div>
+                            </li>
+                        `);
 
-                    $.post("{{ route('tasks.store') }}", {
-                        name,
-                        description,
-                        _token: token
-                    }, function(res) {
-                        console.log('Task creation response:', res); // Debug log
+                        // Set data attributes properly
+                        $taskItem.find('.task-text')
+                            .data('id', res.task.id)
+                            .data('name', res.task.name)
+                            .data('description', res.task.description);
 
-                        if (res.success) {
-                            Swal.fire({
-                                icon: 'success',
-                                title: 'Task Added!',
-                                timer: 2000,
-                                showConfirmButton: false
-                            });
+                        $taskItem.find('.view-btn')
+                            .data('id', res.task.id)
+                            .data('name', res.task.name)
+                            .data('description', res.task.description);
 
-                            // Create DOM elements properly to avoid HTML injection issues
-                            const $taskItem = $(`
-                                <li class="list-group-item" id="task-${res.task.id}">
-                                    <p class="mb-2">
-                                        <span class="task-text"></span>
-                                    </p>
-                                    <small class="text-muted d-block ms-1">
-                                        Created: ${formatDate(res.task.created_at)}
-                                    </small>
-                                    <div class="d-flex mt-2">
-                                        <button class="btn btn-sm btn-outline-info me-2 view-btn" title="View">
-                                            <i class="bi bi-eye"></i>
-                                        </button>
-                                        <button class="btn btn-sm btn-outline-success me-2 complete-btn" title="Complete">
-                                            <i class="bi bi-check2-circle"></i>
-                                        </button>
-                                        <button class="btn btn-sm btn-outline-danger delete-btn">
-                                            <i class="bi bi-trash3"></i>
-                                        </button>
-                                    </div>
-                                </li>
-                            `);
+                        $taskItem.find('.complete-btn, .delete-btn')
+                            .data('id', res.task.id);
 
-                            // Set data attributes and text safely
-                            $taskItem.find('.task-text')
-                                .text(res.task.name)
-                                .data('id', res.task.id)
-                                .data('name', res.task.name)
-                                .data('description', res.task.description);
+                        $('#taskList').prepend($taskItem);
+                        $('#taskName').val('');
 
-                            $taskItem.find('.view-btn')
-                                .data('id', res.task.id)
-                                .data('name', res.task.name)
-                                .data('description', res.task.description);
-
-                            $taskItem.find('.complete-btn, .delete-btn')
-                                .data('id', res.task.id);
-
-                            $('#taskList').prepend($taskItem);
-                            $('#taskName').val('');
-                            tinymce.get('taskDescription').setContent('');
-                            addModal.hide();
-
-                            // Update task counters
-                            updateTaskCounters();
+                        // Clear TinyMCE content if available, otherwise clear textarea
+                        const tinyMCEInstance = tinymce.get('taskDescription');
+                        if (tinyMCEInstance) {
+                            tinyMCEInstance.setContent('');
+                        } else {
+                            $('#taskDescription').val('');
                         }
-                    }).fail(function(xhr) {
-                        console.error('Error details:', xhr.responseText);
-                        let errorMessage = 'Failed to add task';
 
-                        if (xhr.status === 422) {
-                            try {
-                                const errors = JSON.parse(xhr.responseText);
-                                if (errors.errors) {
-                                    errorMessage = Object.values(errors.errors).flat().join(
-                                        ', ');
-                                } else if (errors.message) {
-                                    errorMessage = errors.message;
-                                }
-                            } catch (e) {
-                                errorMessage = 'Validation error - content may be too large';
+                        addModal.hide();
+
+                        // Update task counters
+                        updateTaskCounters();
+                    }
+                }).fail(function(xhr) {
+                    let errorMessage = 'Failed to add task';
+
+                    if (xhr.responseJSON && xhr.responseJSON.message) {
+                        errorMessage = xhr.responseJSON.message;
+                    } else if (xhr.responseJSON && xhr.responseJSON.errors) {
+                        const errors = Object.values(xhr.responseJSON.errors).flat();
+                        errorMessage = errors.join(', ');
+                    } else if (xhr.responseText) {
+                        try {
+                            const response = JSON.parse(xhr.responseText);
+                            if (response.message) {
+                                errorMessage = response.message;
                             }
+                        } catch (e) {
+                            // Error parsing response
+                        }
+                    }
+
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'Error Adding Task',
+                        text: errorMessage,
+                        timer: 5000,
+                        showConfirmButton: true
+                    });
+                });
+            });
+
+            // Edit Task Modal functionality - Click on task text to edit
+            $(document).on('click', '.task-text', function() {
+                const id = $(this).data('id');
+                const name = $(this).data('name');
+                const description = $(this).data('description');
+
+                // Check if task is completed
+                const taskItem = $(`#task-${id}`);
+                const isCompleted = taskItem.find('.completed').length > 0;
+
+                if (isCompleted) {
+                    Swal.fire({
+                        icon: 'info',
+                        title: 'Cannot Edit Completed Task',
+                        text: 'Please mark the task as pending first to edit it.',
+                        timer: 3000
+                    });
+                    return;
+                }
+
+                // Populate the edit modal
+                $('#editTaskId').val(id);
+                $('#editTaskName').val(name);
+
+                // Set description in TinyMCE if available, otherwise in textarea
+                const editTinyMCEInstance = tinymce.get('editTaskDescription');
+                if (editTinyMCEInstance) {
+                    editTinyMCEInstance.setContent(description || '');
+                } else {
+                    $('#editTaskDescription').val(description || '');
+                }
+
+                editModal.show();
+            });
+
+            // Edit Task Form Submission
+            $('#modalEditForm').on('submit', function(e) {
+                e.preventDefault();
+
+                const id = $('#editTaskId').val();
+                const name = $('#editTaskName').val().trim();
+
+                // Get description from TinyMCE if available, otherwise from textarea
+                let description = '';
+                const editTinyMCEInstance = tinymce.get('editTaskDescription');
+                if (editTinyMCEInstance) {
+                    description = editTinyMCEInstance.getContent().trim();
+                } else {
+                    description = $('#editTaskDescription').val().trim();
+                }
+
+                if (!name || !description) {
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'Please fill in all fields',
+                        timer: 2000,
+                        showConfirmButton: false
+                    });
+                    return;
+                }
+
+                $.post(`tasks/${id}/edit`, {
+                    _token: token,
+                    name,
+                    description
+                }, function(res) {
+                    if (res.success) {
+                        Swal.fire({
+                            icon: 'success',
+                            title: 'Task Updated!',
+                            timer: 2000,
+                            showConfirmButton: false
+                        });
+
+                        // Update the task in the list
+                        const taskItem = $(`#task-${id}`);
+                        taskItem.find('.task-text').text(name).data('name', name).data(
+                            'description', description);
+                        taskItem.find('.view-btn').data('name', name).data('description',
+                            description);
+
+                        // Clear and hide modal
+                        $('#editTaskId').val('');
+                        $('#editTaskName').val('');
+
+                        if (editTinyMCEInstance) {
+                            editTinyMCEInstance.setContent('');
+                        } else {
+                            $('#editTaskDescription').val('');
                         }
 
-                        Swal.fire({
-                            icon: 'error',
-                            title: 'Error',
-                            text: errorMessage,
-                            timer: 4000,
-                            showConfirmButton: true
-                        });
+                        editModal.hide();
+                    }
+                }).fail(function(xhr) {
+                    let errorMessage = 'Failed to update task';
+
+                    if (xhr.responseJSON && xhr.responseJSON.message) {
+                        errorMessage = xhr.responseJSON.message;
+                    } else if (xhr.responseJSON && xhr.responseJSON.errors) {
+                        const errors = Object.values(xhr.responseJSON.errors).flat();
+                        errorMessage = errors.join(', ');
+                    }
+
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'Update Failed',
+                        text: errorMessage,
+                        showConfirmButton: true
                     });
-                }
+                });
             });
 
             // View Task
@@ -722,19 +780,13 @@
                 const name = $(this).data('name');
                 const description = $(this).data('description');
 
-                console.log('View button clicked:', {
-                    id,
-                    name,
-                    description 
-                }); // Debug log
-
                 // Check if task is completed by looking at the parent task item
                 const taskItem = $(`#task-${id}`);
                 const isCompleted = taskItem.find('.completed').length > 0;
 
                 $('#viewTaskName').text(name);
 
-                // Safely set the description content
+                // If we have a description, show it, otherwise show no description message
                 if (description && description.trim() !== '') {
                     $('#viewTaskDescription').html(description);
                 } else {
@@ -748,15 +800,13 @@
                 // Hide/show edit button based on completion status
                 if (isCompleted) {
                     $('#viewEditBtn').hide();
-                    $('#viewDescriptionInfo').html(
-                        '<i class="bi bi-check-circle-fill text-success"></i> Task completed'
-                    );
                 } else {
                     $('#viewEditBtn').show();
-                    $('#viewDescriptionInfo')
                 }
 
-                // Add image click handlers for zoom functionality
+                viewModal.show();
+
+                // Add image click handlers for zoom functionality after modal is shown
                 setTimeout(function() {
                     $('#viewTaskDescription img').off('click').on('click', function(e) {
                         e.stopPropagation();
@@ -764,9 +814,18 @@
                         $('#zoomedImage').attr('src', imgSrc);
                         $('#imageZoomModal').fadeIn(200);
                     });
-                }, 100);
 
-                viewModal.show();
+                    // Handle broken images
+                    $('#viewTaskDescription img').off('error').on('error', function() {
+                        $(this).attr('alt', 'Image not found').css({
+                            'background-color': '#f8f9fa',
+                            'border': '1px dashed #dee2e6',
+                            'padding': '20px',
+                            'text-align': 'center',
+                            'color': '#6c757d'
+                        });
+                    });
+                }, 300);
             });
 
             // Image zoom modal close functionality
@@ -781,7 +840,30 @@
                 }
             });
 
-            // Edit from View Modal
+            // Global error handler for images
+            $(document).on('error', 'img', function() {
+                const $img = $(this);
+                if (!$img.hasClass('error-handled')) {
+                    $img.addClass('error-handled');
+                    $img.attr('alt', 'Image not found');
+                    $img.css({
+                        'background-color': '#f8f9fa',
+                        'border': '1px dashed #dee2e6',
+                        'padding': '10px',
+                        'text-align': 'center',
+                        'color': '#6c757d',
+                        'min-height': '100px',
+                        'display': 'flex',
+                        'align-items': 'center',
+                        'justify-content': 'center'
+                    });
+                    $img.attr('src', 'data:image/svg+xml;base64,' + btoa(
+                        '<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100" viewBox="0 0 100 100"><rect width="100" height="100" fill="#f8f9fa" stroke="#dee2e6" stroke-dasharray="5,5"/><text x="50" y="50" text-anchor="middle" dy=".3em" fill="#6c757d" font-family="Arial, sans-serif" font-size="12">Image not found</text></svg>'
+                        ));
+                }
+            });
+
+            // Edit from View Modal - WITH TINYMCE
             $('#viewEditBtn').on('click', function() {
                 // Switch to edit mode
                 $('#viewTaskName').addClass('d-none');
@@ -789,8 +871,8 @@
                 $('#editViewTaskName').removeClass('d-none').val($(this).data('name'));
                 $('#editViewTaskDescription').removeClass('d-none');
 
-                // Initialize TinyMCE for the edit textarea if not already initialized
-                if (!tinymce.get('editViewTaskDescription')) {
+                // Initialize TinyMCE for this specific textarea with error handling
+                if (typeof tinymce !== 'undefined') {
                     tinymce.init({
                         selector: '#editViewTaskDescription',
                         height: 300,
@@ -799,12 +881,11 @@
                             'advlist', 'autolink', 'lists', 'link', 'image', 'charmap',
                             'preview',
                             'anchor', 'searchreplace', 'visualblocks', 'code', 'fullscreen',
-                            'insertdatetime', 'table', 'wordcount'
+                            'insertdatetime', 'media', 'table', 'help', 'wordcount'
                         ],
-                        toolbar: 'undo redo | blocks | ' +
-                            'bold italic forecolor | alignleft aligncenter ' +
-                            'alignright alignjustify | bullist numlist outdent indent | ' +
-                            'link image | removeformat | help',
+                        toolbar: 'undo redo | blocks | bold italic underline strikethrough | ' +
+                            'alignleft aligncenter alignright alignjustify | ' +
+                            'bullist numlist outdent indent | link image | removeformat | help',
                         file_picker_types: 'image',
                         file_picker_callback: function(callback, value, meta) {
                             if (meta.filetype === 'image') {
@@ -836,56 +917,76 @@
                                             return;
                                         }
 
-                                        const reader = new FileReader();
-                                        reader.onload = function(e) {
-                                            const img = new Image();
-                                            img.onload = function() {
-                                                const canvas = document
-                                                    .createElement('canvas');
-                                                const ctx = canvas.getContext(
-                                                    '2d');
+                                        // Create FormData and upload to server
+                                        const formData = new FormData();
+                                        formData.append('image', file);
+                                        formData.append('_token', token);
 
-                                                // Resize image if too large (increased limits)
-                                                let {
-                                                    width,
-                                                    height
-                                                } = img;
-                                                const maxWidth = 1200;
-                                                const maxHeight = 900;
+                                        // Show loading indicator
+                                        Swal.fire({
+                                            title: 'Uploading image...',
+                                            allowOutsideClick: false,
+                                            didOpen: () => {
+                                                Swal.showLoading();
+                                            }
+                                        });
 
-                                                if (width > maxWidth || height >
-                                                    maxHeight) {
-                                                    const ratio = Math.min(
-                                                        maxWidth / width,
-                                                        maxHeight / height);
-                                                    width *= ratio;
-                                                    height *= ratio;
+                                        // Upload to server
+                                        fetch('{{ route('upload.image') }}', {
+                                                method: 'POST',
+                                                body: formData,
+                                                credentials: 'same-origin',
+                                                headers: {
+                                                    'X-Requested-With': 'XMLHttpRequest'
                                                 }
-
-                                                canvas.width = width;
-                                                canvas.height = height;
-                                                ctx.drawImage(img, 0, 0, width,
-                                                    height);
-
-                                                const compressedDataUrl = canvas
-                                                    .toDataURL(
-                                                        'image/jpeg', 0.9);
-                                                callback(compressedDataUrl, {
-                                                    alt: file.name
+                                            })
+                                            .then(response => {
+                                                if (!response.ok) {
+                                                    throw new Error(
+                                                        `HTTP error! status: ${response.status}`
+                                                        );
+                                                }
+                                                return response.json();
+                                            })
+                                            .then(data => {
+                                                Swal.close();
+                                                if (data.success) {
+                                                    callback(data.url, {
+                                                        alt: file.name
+                                                    });
+                                                } else {
+                                                    Swal.fire({
+                                                        icon: 'error',
+                                                        title: 'Upload Failed',
+                                                        text: data
+                                                            .message ||
+                                                            'Failed to upload image',
+                                                        timer: 3000
+                                                    });
+                                                }
+                                            })
+                                            .catch(error => {
+                                                Swal.close();
+                                                console.error('Upload error:',
+                                                    error);
+                                                Swal.fire({
+                                                    icon: 'error',
+                                                    title: 'Upload Error',
+                                                    text: 'Network error occurred while uploading image',
+                                                    timer: 3000
                                                 });
-                                            };
-                                            img.src = e.target.result;
-                                        };
-                                        reader.readAsDataURL(file);
+                                            });
                                     }
                                 });
                                 input.click();
                             }
                         },
-                        content_style: 'body { font-family:Helvetica,Arial,sans-serif; font-size:14px } img { max-width: 100%; height: auto; }',
+                        content_style: 'body { font-family: Arial, sans-serif; font-size: 14px; line-height:1.6; } img { max-width: 100%; height: auto; }',
+                        branding: false,
+                        promotion: false,
                         setup: function(editor) {
                             editor.on('init', function() {
-                                // Set content after initialization
+                                // Set content after editor is initialized
                                 editor.setContent($('#viewEditBtn').data(
                                     'description'));
                             });
@@ -895,8 +996,8 @@
                         }
                     });
                 } else {
-                    // Set TinyMCE content if already initialized
-                    tinymce.get('editViewTaskDescription').setContent($(this).data('description'));
+                    // Fallback if TinyMCE is not available
+                    $('#editViewTaskDescription').val($('#viewEditBtn').data('description'));
                 }
 
                 // Show/hide buttons
@@ -905,28 +1006,18 @@
                 $('#saveEditBtn').removeClass('d-none');
             });
 
-            // Cancel Edit in View Modal
+            // Cancel Edit in View Modal - WITH TINYMCE
             $('#cancelEditBtn').on('click', function() {
+                // Destroy TinyMCE instance if it exists
+                if (tinymce.get('editViewTaskDescription')) {
+                    tinymce.get('editViewTaskDescription').destroy();
+                }
+
                 // Switch back to view mode
                 $('#viewTaskName').removeClass('d-none');
                 $('#viewTaskDescription').removeClass('d-none');
                 $('#editViewTaskName').addClass('d-none');
                 $('#editViewTaskDescription').addClass('d-none');
-
-                // Safely remove TinyMCE instance
-                const editor = tinymce.get('editViewTaskDescription');
-                if (editor) {
-                    editor.remove();
-                }
-
-                // Clean up any leftover TinyMCE wrapper DOM (important)
-                $('#editViewTaskDescription').siblings('.tox').remove();
-
-                // Reset textarea visibility and content
-                $('#editViewTaskDescription')
-                    .val('') // Optional: clear content if needed
-                    .addClass('d-none') // keep hidden
-                    .removeAttr('style'); // remove any leftover display styles
 
                 // Show/hide buttons
                 $('#viewEditBtn').removeClass('d-none');
@@ -936,17 +1027,22 @@
 
 
 
-            // Save Edit in View Modal
+            // Save Edit in View Modal - WITH TINYMCE
             $('#viewEditForm').on('submit', function(e) {
                 e.preventDefault();
 
                 const id = $('#viewEditBtn').data('id');
                 const name = $('#editViewTaskName').val().trim();
-                const description = tinymce.get('editViewTaskDescription') ?
-                    tinymce.get('editViewTaskDescription').getContent() :
-                    $('#editViewTaskDescription').val();
+                let description = '';
 
-                if (!name || !description.trim()) {
+                // Get content from TinyMCE if it exists, otherwise from textarea
+                if (tinymce.get('editViewTaskDescription')) {
+                    description = tinymce.get('editViewTaskDescription').getContent().trim();
+                } else {
+                    description = $('#editViewTaskDescription').val().trim();
+                }
+
+                if (!name || !description) {
                     Swal.fire({
                         icon: 'error',
                         title: 'Please fill in all fields',
@@ -956,62 +1052,33 @@
                     return;
                 }
 
-                // Check content length for server validation limit
-                if (description.length > 16777215) {
-                    Swal.fire({
-                        icon: 'error',
-                        title: 'Content Too Large',
-                        html: `
-                            <p>Description is <strong>${description.length.toLocaleString()}</strong> characters.</p>
-                            <p>Maximum allowed: <strong>16,777,215</strong> characters (~16MB).</p>
-                            <p>Please reduce content size or compress images further.</p>
-                        `,
-                        showConfirmButton: true
-                    });
-                    return;
-                }
-
-                // Show loading indicator for large content
-                const loadingToast = Swal.fire({
-                    title: 'Saving...',
-                    text: 'Processing large content with images',
-                    allowOutsideClick: false,
-                    didOpen: () => {
-                        Swal.showLoading();
-                    }
-                });
-
                 $.post(`tasks/${id}/edit`, {
                     _token: token,
                     name,
                     description
                 }, function(res) {
-                    loadingToast.close();
-
                     if (res.success) {
                         Swal.fire({
                             icon: 'success',
-                            title: 'Task Updated Successfully!',
-                            text: 'All changes including images have been saved.',
-                            timer: 2500,
+                            title: 'Task Updated!',
+                            timer: 2000,
                             showConfirmButton: false
                         });
 
                         // Update the task in the list
                         const taskItem = $(`#task-${id}`);
-                        taskItem.find('.task-text').text(name).data('name', name).data(
-                            'description', res.description);
-                        taskItem.find('.view-btn').data('name', name).data('description', res
-                            .description);
+                        taskItem.find('.task-text').text(name);
+                        taskItem.find('.view-btn').data('name', name).data('description',
+                            description);
 
                         // Update the view modal display
                         $('#viewTaskName').text(name);
-                        $('#viewTaskDescription').html(res.description);
-                        $('#viewEditBtn').data('name', name).data('description', res.description);
+                        $('#viewTaskDescription').html(description);
+                        $('#viewEditBtn').data('name', name).data('description', description);
 
-                        // Remove TinyMCE instance to clean up
+                        // Destroy TinyMCE instance if it exists
                         if (tinymce.get('editViewTaskDescription')) {
-                            tinymce.remove('#editViewTaskDescription');
+                            tinymce.get('editViewTaskDescription').destroy();
                         }
 
                         // Switch back to view mode
@@ -1024,39 +1091,12 @@
                         $('#viewEditBtn').removeClass('d-none');
                         $('#cancelEditBtn').addClass('d-none');
                         $('#saveEditBtn').addClass('d-none');
-
-                        // Re-add image click handlers
-                        setTimeout(function() {
-                            $('#viewTaskDescription img').off('click').on('click', function(
-                                e) {
-                                e.stopPropagation();
-                                const imgSrc = $(this).attr('src');
-                                $('#zoomedImage').attr('src', imgSrc);
-                                $('#imageZoomModal').fadeIn(200);
-                            });
-                        }, 100);
                     }
                 }).fail(function(xhr) {
-                    loadingToast.close();
-
-                    let errorMessage = 'Failed to update task';
-                    if (xhr.status === 422) {
-                        try {
-                            const errors = JSON.parse(xhr.responseText);
-                            if (errors.errors) {
-                                errorMessage = Object.values(errors.errors).flat().join(', ');
-                            } else if (errors.message) {
-                                errorMessage = errors.message;
-                            }
-                        } catch (e) {
-                            errorMessage = 'Content validation error - may be too large';
-                        }
-                    }
-
                     Swal.fire({
                         icon: 'error',
                         title: 'Update Failed',
-                        text: errorMessage,
+                        text: 'Failed to update task',
                         showConfirmButton: true
                     });
                 });
@@ -1168,7 +1208,6 @@
                         updateTaskCounters();
                     }
                 }).fail(function(xhr) {
-                    console.error('Complete/Undo error:', xhr.responseText);
                     Swal.fire({
                         icon: 'error',
                         title: 'Operation Failed',
@@ -1217,6 +1256,48 @@
                     confirmButtonText: 'Yes, logout'
                 }).then(result => {
                     if (result.isConfirmed) $('#logoutForm').submit();
+                });
+            });
+
+            // Modal cleanup handlers
+            $('#addTaskModal').on('hidden.bs.modal', function() {
+                $('#taskName').val('');
+                const addTinyMCEInstance = tinymce.get('taskDescription');
+                if (addTinyMCEInstance) {
+                    addTinyMCEInstance.setContent('');
+                } else {
+                    $('#taskDescription').val('');
+                }
+            });
+
+            $('#editTaskModal').on('hidden.bs.modal', function() {
+                $('#editTaskId').val('');
+                $('#editTaskName').val('');
+                const editTinyMCEInstance = tinymce.get('editTaskDescription');
+                if (editTinyMCEInstance) {
+                    editTinyMCEInstance.setContent('');
+                } else {
+                    $('#editTaskDescription').val('');
+                }
+            });
+
+            // Fix accessibility issues with modals
+            $('#addTaskModal, #editTaskModal, #viewTaskModal').on('show.bs.modal', function() {
+                // Remove aria-hidden when modal is showing
+                $(this).removeAttr('aria-hidden');
+            }).on('shown.bs.modal', function() {
+                // Ensure proper focus management
+                const firstInput = $(this).find('input, textarea, button').not('[data-bs-dismiss]').first();
+                if (firstInput.length) {
+                    firstInput.focus();
+                }
+            }).on('hide.bs.modal', function() {
+                // Ensure TinyMCE editors are properly saved before hiding
+                $(this).find('textarea').each(function() {
+                    const editor = tinymce.get(this.id);
+                    if (editor) {
+                        editor.save();
+                    }
                 });
             });
         });

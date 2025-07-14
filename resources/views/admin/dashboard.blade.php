@@ -54,25 +54,21 @@
                     @csrf
                     <div class="row g-3">
                         <div class="col-md-6">
-                            <div class="row g-3">
-                                <div class="col-12">
-                                    <label for="user_id" class="form-label small fw-semibold">Select User</label>
-                                    <select name="user_id" id="user_id" class="form-select" required>
-                                        <option value="" disabled selected>Choose a user...</option>
-                                        @foreach ($users as $user)
-                                            <option value="{{ $user->id }}">{{ $user->name }} ({{ $user->email }})
-                                            </option>
-                                        @endforeach
-                                    </select>
-                                </div>
-                                <div class="col-12">
-                                    <label for="task_name" class="form-label small fw-semibold">Task Title</label>
-                                    <input type="text" name="task_name" id="task_name" class="form-control"
-                                        placeholder="e.g. Prepare Report" required>
-                                </div>
-                            </div>
+                            <label for="user_id" class="form-label small fw-semibold">Select User</label>
+                            <select name="user_id" id="user_id" class="form-select" required>
+                                <option value="" disabled selected>Choose a user...</option>
+                                @foreach ($users as $user)
+                                    <option value="{{ $user->id }}">{{ $user->name }} ({{ $user->email }})
+                                    </option>
+                                @endforeach
+                            </select>
                         </div>
                         <div class="col-md-6">
+                            <label for="task_name" class="form-label small fw-semibold">Task Title</label>
+                            <input type="text" name="task_name" id="task_name" class="form-control"
+                                placeholder="e.g. Prepare Report" required>
+                        </div>
+                        <div class="col-12">
                             <label for="task_description" class="form-label small fw-semibold">Description</label>
                             <textarea name="task_description" id="task_description" class="form-control" rows="4"
                                 placeholder="Task details..." required></textarea>
@@ -197,7 +193,7 @@
 
     <!-- View Task Modal -->
     <div class="modal fade" id="viewTaskModal" tabindex="-1" aria-labelledby="viewTaskModalLabel" aria-hidden="true">
-        <div class="modal-dialog">
+        <div class="modal-dialog modal-xl">
             <div class="modal-content">
                 <div class="modal-header">
                     <h5 class="modal-title">View Task Details</h5>
@@ -211,7 +207,8 @@
                     <div class="mb-0">
                         <label class="form-label fw-bold">Description</label>
                         <div class="border rounded p-3 bg-light" id="viewTaskDescription"
-                            style="min-height: 100px; white-space: normal; line-height: 1.5;"></div>
+                            style="min-height: 100px; max-height: 500px; overflow-y: auto; white-space: normal; line-height: 1.5; word-wrap: break-word;">
+                        </div>
                     </div>
                 </div>
                 <div class="modal-footer">
@@ -285,6 +282,11 @@
             </form>
         </div>
     </div>
+
+    <!-- Image Zoom Modal -->
+    <div class="image-zoom-modal" id="imageZoomModal">
+        <img src="" alt="Zoomed Image" id="zoomedImage">
+    </div>
 @endsection
 
 @push('styles')
@@ -333,6 +335,78 @@
         /* Table row fade effect */
         .table tbody tr {
             transition: opacity 0.3s ease;
+        }
+
+        /* Rich text content styling */
+        #viewTaskDescription {
+            font-family: Arial, sans-serif;
+        }
+
+        #viewTaskDescription h1,
+        #viewTaskDescription h2,
+        #viewTaskDescription h3 {
+            margin-top: 0;
+            margin-bottom: 0.5rem;
+        }
+
+        #viewTaskDescription p {
+            margin-bottom: 0.5rem;
+        }
+
+        #viewTaskDescription ul,
+        #viewTaskDescription ol {
+            margin-bottom: 0.5rem;
+            padding-left: 1.5rem;
+        }
+
+        #viewTaskDescription strong {
+            font-weight: bold;
+        }
+
+        #viewTaskDescription em {
+            font-style: italic;
+        }
+
+        #viewTaskDescription img {
+            max-width: 100%;
+            height: auto;
+            border-radius: 0.375rem;
+            margin: 0.5rem 0;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+            cursor: pointer;
+            transition: transform 0.2s ease;
+        }
+
+        #viewTaskDescription img:hover {
+            transform: scale(1.02);
+        }
+
+        /* Image zoom modal styling */
+        .image-zoom-modal {
+            background-color: rgba(0, 0, 0, 0.9);
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 9999;
+            cursor: pointer;
+        }
+
+        .image-zoom-modal img {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            max-width: 95%;
+            max-height: 95%;
+            border-radius: 0.5rem;
+        }
+
+        /* TinyMCE container styling */
+        .tox-tinymce {
+            border-radius: 0.375rem !important;
         }
     </style>
 @endpush
@@ -388,17 +462,89 @@
             // Initialize TinyMCE for Assign Task form
             tinymce.init({
                 selector: '#task_description',
-                height: 120,
+                height: 200,
                 menubar: false,
-                plugins: ['advlist', 'autolink', 'lists', 'link', 'charmap', 'preview',
+                plugins: [
+                    'advlist', 'autolink', 'lists', 'link', 'image', 'charmap', 'preview',
                     'anchor', 'searchreplace', 'visualblocks', 'code', 'fullscreen',
                     'insertdatetime', 'table', 'wordcount'
                 ],
                 toolbar: 'undo redo | blocks | ' +
                     'bold italic forecolor | alignleft aligncenter ' +
                     'alignright alignjustify | bullist numlist outdent indent | ' +
-                    'removeformat | help',
-                content_style: 'body { font-family:Helvetica,Arial,sans-serif; font-size:14px; line-height:1.6; }',
+                    'link image | removeformat | help',
+                file_picker_types: 'image',
+                file_picker_callback: function(callback, value, meta) {
+                    if (meta.filetype === 'image') {
+                        const input = document.createElement('input');
+                        input.setAttribute('type', 'file');
+                        input.setAttribute('accept', 'image/*');
+                        input.addEventListener('change', function(e) {
+                            const file = e.target.files[0];
+                            if (file) {
+                                // Validate file type
+                                if (!file.type.startsWith('image/')) {
+                                    Swal.fire({
+                                        icon: 'error',
+                                        title: 'Invalid File Type',
+                                        text: 'Please select an image file (JPG, PNG, GIF, etc.)',
+                                        timer: 3000
+                                    });
+                                    return;
+                                }
+
+                                // Check file size (limit to 10MB)
+                                if (file.size > 10485760) {
+                                    Swal.fire({
+                                        icon: 'error',
+                                        title: 'File Too Large',
+                                        text: 'Please select an image smaller than 10MB.',
+                                        timer: 3000
+                                    });
+                                    return;
+                                }
+
+                                const reader = new FileReader();
+                                reader.onload = function(e) {
+                                    const img = new Image();
+                                    img.onload = function() {
+                                        const canvas = document.createElement('canvas');
+                                        const ctx = canvas.getContext('2d');
+
+                                        // Resize image if too large (increased limits)
+                                        let {
+                                            width,
+                                            height
+                                        } = img;
+                                        const maxWidth = 1200;
+                                        const maxHeight = 900;
+
+                                        if (width > maxWidth || height > maxHeight) {
+                                            const ratio = Math.min(maxWidth / width,
+                                                maxHeight / height);
+                                            width *= ratio;
+                                            height *= ratio;
+                                        }
+
+                                        canvas.width = width;
+                                        canvas.height = height;
+                                        ctx.drawImage(img, 0, 0, width, height);
+
+                                        const compressedDataUrl = canvas.toDataURL(
+                                            'image/jpeg', 0.9);
+                                        callback(compressedDataUrl, {
+                                            alt: file.name
+                                        });
+                                    };
+                                    img.src = e.target.result;
+                                };
+                                reader.readAsDataURL(file);
+                            }
+                        });
+                        input.click();
+                    }
+                },
+                content_style: 'body { font-family:Helvetica,Arial,sans-serif; font-size:14px; line-height:1.6; } img { max-width: 100%; height: auto; }',
                 setup: function(editor) {
                     editor.on('change', function() {
                         editor.save();
@@ -409,17 +555,89 @@
             // Initialize TinyMCE for Edit Task Modal
             tinymce.init({
                 selector: '#editTaskDescription',
-                height: 200,
+                height: 300,
                 menubar: false,
-                plugins: ['advlist', 'autolink', 'lists', 'link', 'charmap', 'preview',
+                plugins: [
+                    'advlist', 'autolink', 'lists', 'link', 'image', 'charmap', 'preview',
                     'anchor', 'searchreplace', 'visualblocks', 'code', 'fullscreen',
                     'insertdatetime', 'table', 'wordcount'
                 ],
                 toolbar: 'undo redo | blocks | ' +
                     'bold italic forecolor | alignleft aligncenter ' +
                     'alignright alignjustify | bullist numlist outdent indent | ' +
-                    'removeformat | help',
-                content_style: 'body { font-family:Helvetica,Arial,sans-serif; font-size:14px; line-height:1.6; }',
+                    'link image | removeformat | help',
+                file_picker_types: 'image',
+                file_picker_callback: function(callback, value, meta) {
+                    if (meta.filetype === 'image') {
+                        const input = document.createElement('input');
+                        input.setAttribute('type', 'file');
+                        input.setAttribute('accept', 'image/*');
+                        input.addEventListener('change', function(e) {
+                            const file = e.target.files[0];
+                            if (file) {
+                                // Validate file type
+                                if (!file.type.startsWith('image/')) {
+                                    Swal.fire({
+                                        icon: 'error',
+                                        title: 'Invalid File Type',
+                                        text: 'Please select an image file (JPG, PNG, GIF, etc.)',
+                                        timer: 3000
+                                    });
+                                    return;
+                                }
+
+                                // Check file size (limit to 10MB)
+                                if (file.size > 10485760) {
+                                    Swal.fire({
+                                        icon: 'error',
+                                        title: 'File Too Large',
+                                        text: 'Please select an image smaller than 10MB.',
+                                        timer: 3000
+                                    });
+                                    return;
+                                }
+
+                                const reader = new FileReader();
+                                reader.onload = function(e) {
+                                    const img = new Image();
+                                    img.onload = function() {
+                                        const canvas = document.createElement('canvas');
+                                        const ctx = canvas.getContext('2d');
+
+                                        // Resize image if too large (increased limits)
+                                        let {
+                                            width,
+                                            height
+                                        } = img;
+                                        const maxWidth = 1200;
+                                        const maxHeight = 900;
+
+                                        if (width > maxWidth || height > maxHeight) {
+                                            const ratio = Math.min(maxWidth / width,
+                                                maxHeight / height);
+                                            width *= ratio;
+                                            height *= ratio;
+                                        }
+
+                                        canvas.width = width;
+                                        canvas.height = height;
+                                        ctx.drawImage(img, 0, 0, width, height);
+
+                                        const compressedDataUrl = canvas.toDataURL(
+                                            'image/jpeg', 0.9);
+                                        callback(compressedDataUrl, {
+                                            alt: file.name
+                                        });
+                                    };
+                                    img.src = e.target.result;
+                                };
+                                reader.readAsDataURL(file);
+                            }
+                        });
+                        input.click();
+                    }
+                },
+                content_style: 'body { font-family:Helvetica,Arial,sans-serif; font-size:14px; line-height:1.6; } img { max-width: 100%; height: auto; }',
                 setup: function(editor) {
                     editor.on('change', function() {
                         editor.save();
@@ -593,11 +811,14 @@
                     },
                     task_description: {
                         required: function() {
-                            return tinymce.get('task_description') ?
-                                tinymce.get('task_description').getContent().trim() === '' :
-                                $('#task_description').val().trim() === '';
+                            if (tinymce.get('task_description')) {
+                                const content = tinymce.get('task_description').getContent();
+                                return content.trim() === '' || content === '<p></p>' || content ===
+                                    '<p><br></p>';
+                            }
+                            return $('#task_description').val().trim() === '';
                         },
-                        minlength: 5
+                        maxlength: 16777215 // 16MB limit for images
                     }
                 },
                 messages: {
@@ -608,7 +829,7 @@
                     },
                     task_description: {
                         required: "Please enter a description.",
-                        minlength: "Description must be at least 5 characters."
+                        maxlength: "Content too large. Maximum 16MB allowed including images."
                     }
                 },
                 errorClass: 'text-danger small',
@@ -817,7 +1038,7 @@
                                 }
                                 return $('#editTaskDescription').val().trim() === '';
                             },
-                            minlength: 5
+                            maxlength: 16777215 // 16MB limit for images
                         }
                     },
                     messages: {
@@ -827,7 +1048,7 @@
                         },
                         description: {
                             required: "Description is required.",
-                            minlength: "Description must be at least 5 characters."
+                            maxlength: "Content too large. Maximum 16MB allowed including images."
                         }
                     },
                     errorClass: 'text-danger small',
@@ -921,6 +1142,28 @@
 
                 nameElement.textContent = taskName;
                 descriptionElement.innerHTML = taskDescription; // Use innerHTML to display HTML content
+
+                // Add image click handlers for zoom functionality
+                setTimeout(function() {
+                    $('#viewTaskDescription img').off('click').on('click', function(e) {
+                        e.stopPropagation();
+                        const imgSrc = $(this).attr('src');
+                        $('#zoomedImage').attr('src', imgSrc);
+                        $('#imageZoomModal').fadeIn(200);
+                    });
+                }, 100);
+            });
+
+            // Image zoom modal close functionality
+            $('#imageZoomModal').on('click', function() {
+                $(this).fadeOut(200);
+            });
+
+            // Keyboard support for image zoom
+            $(document).on('keydown', function(e) {
+                if (e.key === 'Escape' && $('#imageZoomModal').is(':visible')) {
+                    $('#imageZoomModal').fadeOut(200);
+                }
             });
         });
     </script>

@@ -7,6 +7,11 @@ use App\Models\User;
 
 class TaskPolicy
 {
+    public function view(User $user, Task $task)
+    {
+        return $user->id === $task->user_id;
+    }
+
     public function update(User $user, Task $task)
     {
         return $user->id === $task->user_id;

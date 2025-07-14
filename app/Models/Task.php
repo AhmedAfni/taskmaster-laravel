@@ -23,4 +23,5 @@ class Task extends Model
     {
         return $this->belongsTo(Admin::class, 'assigned_by_admin_id');
     }
+
 }

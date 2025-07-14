@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Task;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Storage;
 
 class TaskController extends Controller
 {
@@ -26,7 +27,7 @@ class TaskController extends Controller
         try {
             $request->validate([
                 'name' => 'required|string|max:255',
-                'description' => 'required|string|max:16777215'
+                'description' => 'required|string|max:16777215' // Changed to handle larger content
             ]);
 
             $task = Task::create([
@@ -56,13 +57,12 @@ class TaskController extends Controller
             if ($request->expectsJson()) {
                 return response()->json([
                     'success' => false,
-                    'errors' => $e->errors(),
-                    'message' => 'Validation failed'
+                    'message' => 'Validation failed',
+                    'errors' => $e->errors()
                 ], 422);
             }
             throw $e;
         } catch (\Exception $e) {
-            \Log::error('Task creation failed: ' . $e->getMessage());
             if ($request->expectsJson()) {
                 return response()->json([
                     'success' => false,
@@ -102,6 +102,9 @@ class TaskController extends Controller
     {
         $this->authorize('delete', $task);
 
+        // Extract and delete images from description before deleting task
+        $this->deleteImagesFromDescription($task->description);
+
         $task->delete();
 
         if ($request->expectsJson()) {
@@ -135,4 +138,96 @@ class TaskController extends Controller
 
         return redirect('/');
     }
+
+    public function show(Task $task)
+    {
+        $this->authorize('view', $task);
+
+        return response()->json([
+            'id' => $task->id,
+            'name' => $task->name,
+            'description' => $task->description,
+            'completed' => $task->completed,
+            'created_at' => $task->created_at->format('Y-m-d H:i:s'),
+            'completed_at' => $task->completed_at ? $task->completed_at->format('Y-m-d H:i:s') : null
+        ]);
+    }
+
+    public function uploadImage(Request $request)
+    {
+        try {
+            $request->validate([
+                'image' => 'required|image|mimes:jpeg,png,jpg,gif,webp|max:10240' // 10MB max
+            ]);
+
+            if ($request->hasFile('image')) {
+                $image = $request->file('image');
+
+                // Generate unique filename
+                $filename = time() . '_' . uniqid() . '.' . $image->getClientOriginalExtension();
+
+                // Store in storage/app/public/task-images
+                $path = $image->storeAs('task-images', $filename, 'public');
+
+                // Return the URL that can be used in TinyMCE
+                $url = asset('storage/' . $path);
+
+                return response()->json([
+                    'success' => true,
+                    'url' => $url,
+                    'path' => $path
+                ]);
+            }
+
+            return response()->json([
+                'success' => false,
+                'message' => 'No image file found'
+            ], 400);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to upload image: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Serve images directly (fallback for symbolic link issues)
+     */
+    public function serveImage($filename)
+    {
+        $path = 'task-images/' . $filename;
+
+        if (!Storage::disk('public')->exists($path)) {
+            abort(404);
+        }
+
+        $file = Storage::disk('public')->get($path);
+        $mimeType = Storage::disk('public')->mimeType($path);
+
+        return response($file)->header('Content-Type', $mimeType);
+    }
+
+    /**
+     * Delete images from description content
+     */
+    private function deleteImagesFromDescription($description)
+    {
+        // Extract image URLs from the description HTML
+        preg_match_all('/src="([^"]*storage\/task-images\/[^"]*)"/', $description, $matches);
+
+        if (!empty($matches[1])) {
+            foreach ($matches[1] as $imageUrl) {
+                // Extract the path from the URL
+                $path = str_replace(asset('storage/'), '', $imageUrl);
+
+                // Delete the file if it exists
+                if (Storage::disk('public')->exists($path)) {
+                    Storage::disk('public')->delete($path);
+                }
+            }
+        }
+    }
+
 }

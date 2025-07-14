@@ -6,6 +6,7 @@ use App\Http\Controllers\TaskController;
 use App\Http\Controllers\AdminAuthController;
 use App\Http\Controllers\Admin\AdminController;
 use App\Http\Controllers\AdminUserController;
+use Illuminate\Http\Request;
 
 // Redirect root to register page
 Route::get('/', fn () => redirect()->route('register'));
@@ -19,11 +20,20 @@ Route::get('/home', [App\Http\Controllers\HomeController::class, 'index'])->name
 // --------------------
 // Task Routes (User Side)
 // --------------------
-Route::get('/tasks', [TaskController::class, 'index'])->name('tasks.index');
-Route::post('/tasks', [TaskController::class, 'store'])->name('tasks.store');
-Route::post('/tasks/{task}/complete', [TaskController::class, 'update'])->name('tasks.complete');
-Route::post('/tasks/{task}/delete', [TaskController::class, 'destroy'])->name('tasks.delete');
-Route::post('/tasks/{task}/edit', [TaskController::class, 'editName'])->name('tasks.edit');
+Route::middleware('auth')->group(function () {
+    Route::get('/tasks', [TaskController::class, 'index'])->name('tasks.index');
+    Route::post('/tasks', [TaskController::class, 'store'])->name('tasks.store');
+    Route::post('/tasks/{task}/complete', [TaskController::class, 'update'])->name('tasks.complete');
+    Route::post('/tasks/{task}/delete', [TaskController::class, 'destroy'])->name('tasks.delete');
+    Route::post('/tasks/{task}/edit', [TaskController::class, 'editName'])->name('tasks.edit');
+    Route::get('/tasks/{task}/details', [TaskController::class, 'show'])->name('tasks.details');
+
+    // Image upload route
+    Route::post('/upload-image', [TaskController::class, 'uploadImage'])->name('upload.image');
+
+    // Fallback route for serving images if symbolic link fails
+    Route::get('/storage/task-images/{filename}', [TaskController::class, 'serveImage'])->name('serve.image');
+});
 
 // --------------------
 // Admin Routes
