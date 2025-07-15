@@ -101,7 +101,8 @@
                         <th>Task</th>
                         <th>Status</th>
                         <th>User</th>
-                        <th>Created</th>
+                        <th>Assigned</th>
+                        <th>Completed</th>
                         <th>Actions</th>
                     </tr>
                 </thead>
@@ -113,17 +114,27 @@
 
                             <!-- Task Name -->
                             <td>
-                                <span class="{{ $task->completed ? 'text-muted text-decoration-line-through' : '' }}">
-                                    {{ $task->name }}
-                                </span>
+                                <div class="d-flex align-items-center">
+                                    <span class="{{ $task->completed ? 'text-muted text-decoration-line-through' : '' }}"
+                                        title="{{ $task->name }}">
+                                        {{ Str::limit($task->name, 50) }}
+                                    </span>
+                                    @if ($task->completed)
+                                        <i class="bi bi-check-circle-fill text-success ms-2" title="Task completed"></i>
+                                    @endif
+                                </div>
                             </td>
 
                             <!-- Task Status -->
                             <td>
                                 @if ($task->completed)
-                                    <span class="badge bg-success">Done</span>
+                                    <span class="badge bg-success">
+                                        <i class="bi bi-check-circle-fill me-1"></i>Completed
+                                    </span>
                                 @else
-                                    <span class="badge bg-warning text-dark">Pending</span>
+                                    <span class="badge bg-warning text-dark">
+                                        <i class="bi bi-clock me-1"></i>Pending
+                                    </span>
                                 @endif
                             </td>
 
@@ -143,6 +154,16 @@
                                 <small>{{ $task->created_at->format('d M Y, h:i A') }}</small>
                             </td>
 
+                            <!-- Completed At -->
+                            <td>
+                                @if ($task->completed && $task->completed_at)
+                                    <small
+                                        class="text-success">{{ \Carbon\Carbon::parse($task->completed_at)->format('d M Y, h:i A') }}</small>
+                                @else
+                                    <span class="text-muted">-</span>
+                                @endif
+                            </td>
+
                             <!-- Actions -->
                             <td>
                                 <div class="d-flex gap-1">
@@ -155,11 +176,12 @@
 
                                     <!-- Complete / Undo -->
                                     <form method="POST"
-                                        action="{{ $task->completed ? route('admin.tasks.undo', $task) : route('admin.tasks.complete', $task) }}">
+                                        action="{{ $task->completed ? route('admin.tasks.undo', $task) : route('admin.tasks.complete', $task) }}"
+                                        class="d-inline">
                                         @csrf
                                         <button type="submit"
-                                            class="btn btn-sm {{ $task->completed ? 'btn-outline-secondary' : 'btn-outline-success' }}"
-                                            title="{{ $task->completed ? 'Undo Task' : 'Mark Complete' }}">
+                                            class="btn btn-sm {{ $task->completed ? 'btn-outline-warning' : 'btn-outline-success' }}"
+                                            title="{{ $task->completed ? 'Mark as Incomplete' : 'Mark as Complete' }}">
                                             <i
                                                 class="bi {{ $task->completed ? 'bi-arrow-counterclockwise' : 'bi-check2-circle' }}"></i>
                                         </button>
@@ -173,7 +195,7 @@
 
                                     <!-- Delete -->
                                     <form method="POST" action="{{ route('admin.tasks.delete', $task) }}"
-                                        class="delete-task-form">
+                                        class="delete-task-form d-inline">
                                         @csrf
                                         <button type="button" class="btn btn-sm btn-outline-danger delete-task-btn"
                                             title="Delete" data-task-id="{{ $task->id }}">
@@ -185,7 +207,7 @@
                         </tr>
                     @empty
                         <tr>
-                            <td class="text-center text-muted" colspan="6">No tasks found.</td>
+                            <td class="text-center text-muted" colspan="7">No tasks found.</td>
                         </tr>
                     @endforelse
                 </tbody>
@@ -255,8 +277,12 @@
                         </div>
                     </div>
                     <div class="modal-footer">
-                        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
-                        <button type="submit" class="btn btn-dark">Save Changes</button>
+                        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">
+                            <i class="bi bi-x-circle"></i> Cancel
+                        </button>
+                        <button type="submit" class="btn btn-dark">
+                            <i class="bi bi-save me-1"></i> Save Changes
+                        </button>
                     </div>
                 </div>
             </form>
@@ -454,6 +480,40 @@
         #viewTaskDescription table tbody tr:hover {
             background-color: #e9ecef;
         }
+
+        /* Task table improvements */
+        #userTasksTable {
+            border-radius: 0.375rem;
+            overflow: hidden;
+        }
+
+        #userTasksTable .btn-group .btn {
+            margin-right: 2px;
+        }
+
+        #userTasksTable .btn-group .btn:last-child {
+            margin-right: 0;
+        }
+
+        /* Badge improvements */
+        .badge {
+            font-size: 0.75rem;
+            font-weight: 500;
+        }
+
+        .badge i {
+            font-size: 0.7rem;
+        }
+
+        /* Table action buttons */
+        .d-flex.gap-1 .btn {
+            border-radius: 0.375rem;
+        }
+
+        /* Strikethrough completed tasks */
+        .text-decoration-line-through {
+            opacity: 0.7;
+        }
     </style>
 @endpush
 
@@ -472,6 +532,10 @@
     <script src="https://cdn.ckeditor.com/ckeditor5/39.0.1/classic/ckeditor.js"></script>
 
     <script>
+        // Global variables for CKEditor instances
+        let assignTaskEditor2;
+        let editTaskEditor2 = null;
+
         $(document).ready(function() {
             const $table = $('#userTasksTable');
 
@@ -481,8 +545,8 @@
                     pageLength: 4,
                     ordering: true,
                     order: [
-                        [4, 'asc']
-                    ], // ✅ Changed to ascending
+                        [4, 'desc']
+                    ], // Order by "Assigned" column (created_at)
                     language: {
                         search: "Search tasks:",
                         lengthMenu: "Show _MENU_ tasks per page",
@@ -491,7 +555,7 @@
                     },
                     columnDefs: [{
                         orderable: false,
-                        targets: [0, 5] // '#' and Actions columns
+                        targets: [0, 6] // '#' and Actions columns
                     }]
                 });
 
@@ -508,303 +572,314 @@
             }
 
             // Initialize TinyMCE for Assign Task form
-            tinymce.init({
-                selector: '#task_description',
-                height: 200,
-                menubar: false,
-                plugins: [
-                    'advlist', 'autolink', 'lists', 'link', 'image', 'charmap', 'preview',
-                    'anchor', 'searchreplace', 'visualblocks', 'code', 'fullscreen',
-                    'insertdatetime', 'table', 'wordcount'
-                ],
-                toolbar: 'undo redo | blocks | ' +
-                    'bold italic forecolor | alignleft aligncenter ' +
-                    'alignright alignjustify | bullist numlist outdent indent | ' +
-                    'link image | removeformat | help',
-                file_picker_types: 'image',
-                file_picker_callback: function(callback, value, meta) {
-                    if (meta.filetype === 'image') {
-                        const input = document.createElement('input');
-                        input.setAttribute('type', 'file');
-                        input.setAttribute('accept', 'image/*');
-                        input.addEventListener('change', function(e) {
-                            const file = e.target.files[0];
-                            if (file) {
-                                // Validate file type
-                                if (!file.type.startsWith('image/')) {
-                                    Swal.fire({
-                                        icon: 'error',
-                                        title: 'Invalid File Type',
-                                        text: 'Please select an image file (JPG, PNG, GIF, etc.)',
-                                        timer: 3000
-                                    });
-                                    return;
-                                }
-
-                                // Check file size (limit to 10MB)
-                                if (file.size > 10485760) {
-                                    Swal.fire({
-                                        icon: 'error',
-                                        title: 'File Too Large',
-                                        text: 'Please select an image smaller than 10MB.',
-                                        timer: 3000
-                                    });
-                                    return;
-                                }
-
-                                // Get CSRF token
-                                const token = document.querySelector('meta[name="csrf-token"]')
-                                    ?.getAttribute('content') ||
-                                    document.querySelector('input[name="_token"]')?.value;
-
-                                if (!token) {
-                                    Swal.fire({
-                                        icon: 'error',
-                                        title: 'Security Error',
-                                        text: 'CSRF token not found. Please refresh the page.',
-                                        timer: 3000
-                                    });
-                                    return;
-                                }
-
-                                // Create FormData and upload to server
-                                const formData = new FormData();
-                                formData.append('image', file);
-                                formData.append('_token', token);
-
-                                // Show loading indicator
-                                Swal.fire({
-                                    title: 'Uploading image...',
-                                    allowOutsideClick: false,
-                                    didOpen: () => {
-                                        Swal.showLoading();
-                                    }
-                                });
-
-                                // Upload to server
-                                fetch('{{ route('admin.upload.image') }}', {
-                                        method: 'POST',
-                                        body: formData,
-                                        credentials: 'same-origin',
-                                        headers: {
-                                            'X-Requested-With': 'XMLHttpRequest'
-                                        }
-                                    })
-                                    .then(response => {
-                                        if (!response.ok) {
-                                            throw new Error(
-                                                `HTTP error! status: ${response.status}`
-                                            );
-                                        }
-                                        return response.json();
-                                    })
-                                    .then(data => {
-                                        Swal.close();
-                                        if (data.success) {
-                                            callback(data.url, {
-                                                alt: file.name
-                                            });
-                                        } else {
-                                            Swal.fire({
-                                                icon: 'error',
-                                                title: 'Upload Failed',
-                                                text: data.message ||
-                                                    'Failed to upload image',
-                                                timer: 3000
-                                            });
-                                        }
-                                    })
-                                    .catch(error => {
-                                        Swal.close();
-                                        console.error('Upload error:', error);
+            if (document.querySelector('#task_description')) {
+                tinymce.init({
+                    selector: '#task_description',
+                    height: 200,
+                    menubar: false,
+                    plugins: [
+                        'advlist', 'autolink', 'lists', 'link', 'image', 'charmap', 'preview',
+                        'anchor', 'searchreplace', 'visualblocks', 'code', 'fullscreen',
+                        'insertdatetime', 'table', 'wordcount'
+                    ],
+                    toolbar: 'undo redo | blocks | ' +
+                        'bold italic forecolor | alignleft aligncenter ' +
+                        'alignright alignjustify | bullist numlist outdent indent | ' +
+                        'link image | removeformat | help',
+                    file_picker_types: 'image',
+                    file_picker_callback: function(callback, value, meta) {
+                        if (meta.filetype === 'image') {
+                            const input = document.createElement('input');
+                            input.setAttribute('type', 'file');
+                            input.setAttribute('accept', 'image/*');
+                            input.addEventListener('change', function(e) {
+                                const file = e.target.files[0];
+                                if (file) {
+                                    // Validate file type
+                                    if (!file.type.startsWith('image/')) {
                                         Swal.fire({
                                             icon: 'error',
-                                            title: 'Upload Error',
-                                            text: 'Network error occurred while uploading image',
+                                            title: 'Invalid File Type',
+                                            text: 'Please select an image file (JPG, PNG, GIF, etc.)',
                                             timer: 3000
                                         });
+                                        return;
+                                    }
+
+                                    // Check file size (limit to 10MB)
+                                    if (file.size > 10485760) {
+                                        Swal.fire({
+                                            icon: 'error',
+                                            title: 'File Too Large',
+                                            text: 'Please select an image smaller than 10MB.',
+                                            timer: 3000
+                                        });
+                                        return;
+                                    }
+
+                                    // Get CSRF token
+                                    const token = document.querySelector(
+                                            'meta[name="csrf-token"]')
+                                        ?.getAttribute('content') ||
+                                        document.querySelector('input[name="_token"]')?.value;
+
+                                    if (!token) {
+                                        Swal.fire({
+                                            icon: 'error',
+                                            title: 'Security Error',
+                                            text: 'CSRF token not found. Please refresh the page.',
+                                            timer: 3000
+                                        });
+                                        return;
+                                    }
+
+                                    // Create FormData and upload to server
+                                    const formData = new FormData();
+                                    formData.append('image', file);
+                                    formData.append('_token', token);
+
+                                    // Show loading indicator
+                                    Swal.fire({
+                                        title: 'Uploading image...',
+                                        allowOutsideClick: false,
+                                        didOpen: () => {
+                                            Swal.showLoading();
+                                        }
                                     });
-                            }
+
+                                    // Upload to server
+                                    fetch('{{ route('admin.upload.image') }}', {
+                                            method: 'POST',
+                                            body: formData,
+                                            credentials: 'same-origin',
+                                            headers: {
+                                                'X-Requested-With': 'XMLHttpRequest'
+                                            }
+                                        })
+                                        .then(response => {
+                                            if (!response.ok) {
+                                                throw new Error(
+                                                    `HTTP error! status: ${response.status}`
+                                                );
+                                            }
+                                            return response.json();
+                                        })
+                                        .then(data => {
+                                            Swal.close();
+                                            if (data.success) {
+                                                callback(data.url, {
+                                                    alt: file.name
+                                                });
+                                            } else {
+                                                Swal.fire({
+                                                    icon: 'error',
+                                                    title: 'Upload Failed',
+                                                    text: data.message ||
+                                                        'Failed to upload image',
+                                                    timer: 3000
+                                                });
+                                            }
+                                        })
+                                        .catch(error => {
+                                            Swal.close();
+                                            console.error('Upload error:', error);
+                                            Swal.fire({
+                                                icon: 'error',
+                                                title: 'Upload Error',
+                                                text: 'Network error occurred while uploading image',
+                                                timer: 3000
+                                            });
+                                        });
+                                }
+                            });
+                            input.click();
+                        }
+                    },
+                    content_style: 'body { font-family:Helvetica,Arial,sans-serif; font-size:14px; line-height:1.6; } img { max-width: 100%; height: auto; }',
+                    setup: function(editor) {
+                        editor.on('change', function() {
+                            editor.save();
                         });
-                        input.click();
                     }
-                },
-                content_style: 'body { font-family:Helvetica,Arial,sans-serif; font-size:14px; line-height:1.6; } img { max-width: 100%; height: auto; }',
-                setup: function(editor) {
-                    editor.on('change', function() {
-                        editor.save();
-                    });
-                }
-            });
+                });
+            } else {
+                console.error('Element #task_description not found for TinyMCE');
+            }
 
             // Initialize CKEditor5 for Additional Description in Assign Task
-            let assignTaskEditor2;
-            ClassicEditor
-                .create(document.querySelector('#task_description2'), {
-                    toolbar: [
-                        'heading',
-                        '|',
-                        'bold',
-                        'italic',
-                        '|',
-                        'numberedList',
-                        'bulletedList',
-                        '|',
-                        'outdent',
-                        'indent',
-                        '|',
-                        'link',
-                        'blockQuote',
-                        'insertTable',
-                        '|',
-                        'undo',
-                        'redo'
-                    ],
-                    placeholder: 'Enter additional description...'
-                })
-                .then(editor => {
-                    assignTaskEditor2 = editor;
-                    console.log('CKEditor5 initialized for assign task additional description');
-                })
-                .catch(error => {
-                    console.error('CKEditor5 initialization error:', error);
-                });
-
-            // Initialize CKEditor5 for Edit Task Modal Additional Description
-            let editTaskEditor2;
+            const assignTaskDesc2Element = document.querySelector('#task_description2');
+            if (assignTaskDesc2Element) {
+                ClassicEditor
+                    .create(assignTaskDesc2Element, {
+                        toolbar: [
+                            'heading',
+                            '|',
+                            'bold',
+                            'italic',
+                            '|',
+                            'numberedList',
+                            'bulletedList',
+                            '|',
+                            'outdent',
+                            'indent',
+                            '|',
+                            'link',
+                            'blockQuote',
+                            'insertTable',
+                            '|',
+                            'undo',
+                            'redo'
+                        ],
+                        placeholder: 'Enter additional description...'
+                    })
+                    .then(editor => {
+                        assignTaskEditor2 = editor;
+                        console.log('CKEditor5 initialized for assign task additional description');
+                    })
+                    .catch(error => {
+                        console.error('CKEditor5 initialization error:', error);
+                    });
+            } else {
+                console.error('Element #task_description2 not found');
+            }
 
             // Initialize TinyMCE for Edit Task Modal
-            tinymce.init({
-                selector: '#editTaskDescription',
-                height: 300,
-                menubar: false,
-                plugins: [
-                    'advlist', 'autolink', 'lists', 'link', 'image', 'charmap', 'preview',
-                    'anchor', 'searchreplace', 'visualblocks', 'code', 'fullscreen',
-                    'insertdatetime', 'table', 'wordcount'
-                ],
-                toolbar: 'undo redo | blocks | ' +
-                    'bold italic forecolor | alignleft aligncenter ' +
-                    'alignright alignjustify | bullist numlist outdent indent | ' +
-                    'link image | removeformat | help',
-                file_picker_types: 'image',
-                file_picker_callback: function(callback, value, meta) {
-                    if (meta.filetype === 'image') {
-                        const input = document.createElement('input');
-                        input.setAttribute('type', 'file');
-                        input.setAttribute('accept', 'image/*');
-                        input.addEventListener('change', function(e) {
-                            const file = e.target.files[0];
-                            if (file) {
-                                // Validate file type
-                                if (!file.type.startsWith('image/')) {
-                                    Swal.fire({
-                                        icon: 'error',
-                                        title: 'Invalid File Type',
-                                        text: 'Please select an image file (JPG, PNG, GIF, etc.)',
-                                        timer: 3000
-                                    });
-                                    return;
-                                }
-
-                                // Check file size (limit to 10MB)
-                                if (file.size > 10485760) {
-                                    Swal.fire({
-                                        icon: 'error',
-                                        title: 'File Too Large',
-                                        text: 'Please select an image smaller than 10MB.',
-                                        timer: 3000
-                                    });
-                                    return;
-                                }
-
-                                // Get CSRF token
-                                const token = document.querySelector('meta[name="csrf-token"]')
-                                    ?.getAttribute('content') ||
-                                    document.querySelector('input[name="_token"]')?.value;
-
-                                if (!token) {
-                                    Swal.fire({
-                                        icon: 'error',
-                                        title: 'Security Error',
-                                        text: 'CSRF token not found. Please refresh the page.',
-                                        timer: 3000
-                                    });
-                                    return;
-                                }
-
-                                // Create FormData and upload to server
-                                const formData = new FormData();
-                                formData.append('image', file);
-                                formData.append('_token', token);
-
-                                // Show loading indicator
-                                Swal.fire({
-                                    title: 'Uploading image...',
-                                    allowOutsideClick: false,
-                                    didOpen: () => {
-                                        Swal.showLoading();
-                                    }
-                                });
-
-                                // Upload to server
-                                fetch('{{ route('admin.upload.image') }}', {
-                                        method: 'POST',
-                                        body: formData,
-                                        credentials: 'same-origin',
-                                        headers: {
-                                            'X-Requested-With': 'XMLHttpRequest'
-                                        }
-                                    })
-                                    .then(response => {
-                                        if (!response.ok) {
-                                            throw new Error(
-                                                `HTTP error! status: ${response.status}`
-                                            );
-                                        }
-                                        return response.json();
-                                    })
-                                    .then(data => {
-                                        Swal.close();
-                                        if (data.success) {
-                                            callback(data.url, {
-                                                alt: file.name
-                                            });
-                                        } else {
-                                            Swal.fire({
-                                                icon: 'error',
-                                                title: 'Upload Failed',
-                                                text: data.message ||
-                                                    'Failed to upload image',
-                                                timer: 3000
-                                            });
-                                        }
-                                    })
-                                    .catch(error => {
-                                        Swal.close();
-                                        console.error('Upload error:', error);
+            if (document.querySelector('#editTaskDescription')) {
+                tinymce.init({
+                    selector: '#editTaskDescription',
+                    height: 300,
+                    menubar: false,
+                    plugins: [
+                        'advlist', 'autolink', 'lists', 'link', 'image', 'charmap', 'preview',
+                        'anchor', 'searchreplace', 'visualblocks', 'code', 'fullscreen',
+                        'insertdatetime', 'table', 'wordcount'
+                    ],
+                    toolbar: 'undo redo | blocks | ' +
+                        'bold italic forecolor | alignleft aligncenter ' +
+                        'alignright alignjustify | bullist numlist outdent indent | ' +
+                        'link image | removeformat | help',
+                    file_picker_types: 'image',
+                    file_picker_callback: function(callback, value, meta) {
+                        if (meta.filetype === 'image') {
+                            const input = document.createElement('input');
+                            input.setAttribute('type', 'file');
+                            input.setAttribute('accept', 'image/*');
+                            input.addEventListener('change', function(e) {
+                                const file = e.target.files[0];
+                                if (file) {
+                                    // Validate file type
+                                    if (!file.type.startsWith('image/')) {
                                         Swal.fire({
                                             icon: 'error',
-                                            title: 'Upload Error',
-                                            text: 'Network error occurred while uploading image',
+                                            title: 'Invalid File Type',
+                                            text: 'Please select an image file (JPG, PNG, GIF, etc.)',
                                             timer: 3000
                                         });
+                                        return;
+                                    }
+
+                                    // Check file size (limit to 10MB)
+                                    if (file.size > 10485760) {
+                                        Swal.fire({
+                                            icon: 'error',
+                                            title: 'File Too Large',
+                                            text: 'Please select an image smaller than 10MB.',
+                                            timer: 3000
+                                        });
+                                        return;
+                                    }
+
+                                    // Get CSRF token
+                                    const token = document.querySelector(
+                                            'meta[name="csrf-token"]')
+                                        ?.getAttribute('content') ||
+                                        document.querySelector('input[name="_token"]')?.value;
+
+                                    if (!token) {
+                                        Swal.fire({
+                                            icon: 'error',
+                                            title: 'Security Error',
+                                            text: 'CSRF token not found. Please refresh the page.',
+                                            timer: 3000
+                                        });
+                                        return;
+                                    }
+
+                                    // Create FormData and upload to server
+                                    const formData = new FormData();
+                                    formData.append('image', file);
+                                    formData.append('_token', token);
+
+                                    // Show loading indicator
+                                    Swal.fire({
+                                        title: 'Uploading image...',
+                                        allowOutsideClick: false,
+                                        didOpen: () => {
+                                            Swal.showLoading();
+                                        }
                                     });
-                            }
+
+                                    // Upload to server
+                                    fetch('{{ route('admin.upload.image') }}', {
+                                            method: 'POST',
+                                            body: formData,
+                                            credentials: 'same-origin',
+                                            headers: {
+                                                'X-Requested-With': 'XMLHttpRequest'
+                                            }
+                                        })
+                                        .then(response => {
+                                            if (!response.ok) {
+                                                throw new Error(
+                                                    `HTTP error! status: ${response.status}`
+                                                );
+                                            }
+                                            return response.json();
+                                        })
+                                        .then(data => {
+                                            Swal.close();
+                                            if (data.success) {
+                                                callback(data.url, {
+                                                    alt: file.name
+                                                });
+                                            } else {
+                                                Swal.fire({
+                                                    icon: 'error',
+                                                    title: 'Upload Failed',
+                                                    text: data.message ||
+                                                        'Failed to upload image',
+                                                    timer: 3000
+                                                });
+                                            }
+                                        })
+                                        .catch(error => {
+                                            Swal.close();
+                                            console.error('Upload error:', error);
+                                            Swal.fire({
+                                                icon: 'error',
+                                                title: 'Upload Error',
+                                                text: 'Network error occurred while uploading image',
+                                                timer: 3000
+                                            });
+                                        });
+                                }
+                            });
+                            input.click();
+                        }
+                    },
+                    content_style: 'body { font-family:Helvetica,Arial,sans-serif; font-size:14px; line-height:1.6; } img { max-width: 100%; height: auto; }',
+                    setup: function(editor) {
+                        editor.on('change', function() {
+                            editor.save();
                         });
-                        input.click();
+                        editor.on('init', function() {
+                            // Editor is ready for content
+                        });
                     }
-                },
-                content_style: 'body { font-family:Helvetica,Arial,sans-serif; font-size:14px; line-height:1.6; } img { max-width: 100%; height: auto; }',
-                setup: function(editor) {
-                    editor.on('change', function() {
-                        editor.save();
-                    });
-                    editor.on('init', function() {
-                        // Editor is ready for content
-                    });
-                }
-            });
+                });
+            } else {
+                console.error('Element #editTaskDescription not found for TinyMCE');
+            }
         });
     </script>
 
@@ -1170,9 +1245,154 @@
 
             // Edit Task Modal
             const editTaskModal = document.getElementById('editTaskModal');
+
+            // Initialize CKEditor5 for Edit Task modal when shown
+            $('#editTaskModal').on('shown.bs.modal', function() {
+                console.log('Edit Task modal shown, checking CKEditor5...');
+                // Only initialize if not already done
+                if (!editTaskEditor2) {
+                    const element = document.querySelector('#editTaskDescription2');
+                    console.log('Edit modal element found:', element);
+                    console.log('ClassicEditor available:', typeof ClassicEditor !== 'undefined');
+
+                    if (element && typeof ClassicEditor !== 'undefined') {
+                        console.log('Initializing CKEditor5 for edit modal...');
+                        ClassicEditor
+                            .create(element, {
+                                toolbar: [
+                                    'heading',
+                                    '|',
+                                    'bold',
+                                    'italic',
+                                    '|',
+                                    'numberedList',
+                                    'bulletedList',
+                                    '|',
+                                    'outdent',
+                                    'indent',
+                                    '|',
+                                    'link',
+                                    'blockQuote',
+                                    'insertTable',
+                                    '|',
+                                    'undo',
+                                    'redo'
+                                ],
+                                placeholder: 'Enter additional description...'
+                            })
+                            .then(editor => {
+                                editTaskEditor2 = editor;
+                                console.log('CKEditor5 initialized successfully for edit modal');
+
+                                // Set the data from the stored value if available
+                                const storedDescription2 = $(element).data('pending-content');
+                                if (storedDescription2) {
+                                    editor.setData(storedDescription2);
+                                    $(element).removeData('pending-content');
+                                }
+                            })
+                            .catch(error => {
+                                console.error('CKEditor5 initialization error for edit modal:', error);
+                            });
+                    } else {
+                        console.error(
+                            'CKEditor5 element not found or ClassicEditor not available for edit modal');
+
+                        // Try again after a short delay in case the script is still loading
+                        const element = document.querySelector('#editTaskDescription2');
+                        if (element && typeof ClassicEditor === 'undefined') {
+                            console.log('Retrying CKEditor5 initialization for edit modal after delay...');
+                            setTimeout(() => {
+                                if (typeof ClassicEditor !== 'undefined') {
+                                    console.log(
+                                        'CKEditor5 now available for edit modal, initializing...'
+                                    );
+                                    ClassicEditor
+                                        .create(element, {
+                                            toolbar: [
+                                                'heading',
+                                                '|',
+                                                'bold',
+                                                'italic',
+                                                '|',
+                                                'numberedList',
+                                                'bulletedList',
+                                                '|',
+                                                'outdent',
+                                                'indent',
+                                                '|',
+                                                'link',
+                                                'blockQuote',
+                                                'insertTable',
+                                                '|',
+                                                'undo',
+                                                'redo'
+                                            ],
+                                            placeholder: 'Enter additional description...'
+                                        })
+                                        .then(editor => {
+                                            editTaskEditor2 = editor;
+                                            console.log(
+                                                'CKEditor5 initialized successfully for edit modal (delayed)'
+                                            );
+
+                                            // Set the data from the stored value if available
+                                            const storedDescription2 = $(element).data(
+                                                'pending-content');
+                                            if (storedDescription2) {
+                                                editor.setData(storedDescription2);
+                                                $(element).removeData('pending-content');
+                                            }
+                                        })
+                                        .catch(error => {
+                                            console.error(
+                                                'CKEditor5 delayed initialization error for edit modal:',
+                                                error);
+                                        });
+                                } else {
+                                    console.error(
+                                        'CKEditor5 still not available for edit modal after delay'
+                                    );
+                                }
+                            }, 1000);
+                        }
+                    }
+                } else {
+                    console.log('CKEditor5 already initialized for edit modal');
+                    // Set the data from the stored value if available
+                    const element = document.querySelector('#editTaskDescription2');
+                    const storedDescription2 = $(element).data('pending-content');
+                    if (storedDescription2) {
+                        editTaskEditor2.setData(storedDescription2);
+                        $(element).removeData('pending-content');
+                    }
+                }
+            });
+
+            // Clean up CKEditor5 when edit modal is hidden
+            $('#editTaskModal').on('hidden.bs.modal', function() {
+                if (editTaskEditor2) {
+                    editTaskEditor2.destroy().then(() => {
+                        editTaskEditor2 = null;
+                        console.log('CKEditor5 destroyed for edit modal');
+                    }).catch(error => {
+                        console.error('Error destroying CKEditor5 for edit modal:', error);
+                        editTaskEditor2 = null;
+                    });
+                }
+
+                // Clear any pending content data
+                const element = document.querySelector('#editTaskDescription2');
+                if (element) {
+                    $(element).removeData('pending-content');
+                }
+            });
+
             editTaskModal.addEventListener('show.bs.modal', function(event) {
+                console.log('Edit modal opening...');
                 const button = event.relatedTarget;
                 const taskId = button.getAttribute('data-task-id');
+                console.log('Task ID:', taskId);
 
                 const nameInput = editTaskModal.querySelector('#editTaskName');
                 const descriptionInput = editTaskModal.querySelector('#editTaskDescription');
@@ -1186,47 +1406,21 @@
                     url: `{{ url('admin/api/tasks') }}/${taskId}`,
                     method: 'GET',
                     success: function(response) {
+                        console.log('API Response:', response);
                         const task = response.task;
 
                         nameInput.value = task.name;
 
-                        // Initialize CKEditor5 for edit modal if not already done
-                        if (!editTaskEditor2) {
-                            ClassicEditor
-                                .create(description2Input, {
-                                    toolbar: [
-                                        'heading',
-                                        '|',
-                                        'bold',
-                                        'italic',
-                                        '|',
-                                        'numberedList',
-                                        'bulletedList',
-                                        '|',
-                                        'outdent',
-                                        'indent',
-                                        '|',
-                                        'link',
-                                        'blockQuote',
-                                        'insertTable',
-                                        '|',
-                                        'undo',
-                                        'redo'
-                                    ],
-                                    placeholder: 'Enter additional description...'
-                                })
-                                .then(editor => {
-                                    editTaskEditor2 = editor;
-                                    editor.setData(task.description2 || '');
-                                    console.log(
-                                        'CKEditor5 initialized for edit task additional description'
-                                    );
-                                })
-                                .catch(error => {
-                                    console.error('CKEditor5 initialization error:', error);
-                                });
-                        } else {
+                        // Store the additional description data temporarily for when the editor is initialized
+                        const editDesc2Element = document.querySelector(
+                            '#editTaskDescription2');
+                        if (editTaskEditor2) {
                             editTaskEditor2.setData(task.description2 || '');
+                        } else {
+                            // Store the data temporarily for when the editor is initialized
+                            $(editDesc2Element).data('pending-content', task.description2 ||
+                                '');
+                            editDesc2Element.value = task.description2 || '';
                         }
 
                         // Wait a bit for modal to be fully shown, then set TinyMCE content
@@ -1366,12 +1560,6 @@
             // Clean up validation when modal is hidden
             editTaskModal.addEventListener('hidden.bs.modal', function() {
                 $('#editTaskForm').removeData('validator');
-                // Clean up CKEditor5 instance
-                if (editTaskEditor2) {
-                    editTaskEditor2.destroy().then(() => {
-                        editTaskEditor2 = null;
-                    });
-                }
             });
 
             // View Task Modal

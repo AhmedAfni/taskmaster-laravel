@@ -250,7 +250,8 @@
                             @if (!$task->completed)
                                 <p class="mb-2">
                                     <span class="task-text" data-id="{{ $task->id }}"
-                                        data-name="{{ $task->name }}" data-description="{{ $task->description }}">
+                                        data-name="{{ $task->name }}" data-description="{{ $task->description }}"
+                                        data-description2="{{ $task->description2 ?? '' }}">
                                         {{ $task->name }}
                                     </span>
                                 </p>
@@ -271,6 +272,14 @@
                                     data-description2="{{ $task->description2 ?? '' }}" title="View">
                                     <i class="bi bi-eye"></i>
                                 </button>
+                                @if (!$task->completed)
+                                    <button class="btn btn-sm btn-outline-primary me-2 edit-btn"
+                                        data-id="{{ $task->id }}" data-name="{{ $task->name }}"
+                                        data-description="{{ $task->description }}"
+                                        data-description2="{{ $task->description2 ?? '' }}" title="Edit">
+                                        <i class="bi bi-pencil-square"></i>
+                                    </button>
+                                @endif
                                 <button class="btn btn-sm btn-outline-success me-2 complete-btn"
                                     data-id="{{ $task->id }}"
                                     title="{{ $task->completed ? 'Undo' : 'Complete' }}">
@@ -343,6 +352,11 @@
                         <textarea class="form-control" id="editTaskDescription" name="editTaskDescription" rows="3"
                             placeholder="Enter task description..." required></textarea>
                     </div>
+                    <div class="mb-3">
+                        <label for="editTaskDescription2" class="form-label">Additional Description</label>
+                        <textarea class="form-control" id="editTaskDescription2" name="editTaskDescription2" rows="3"
+                            placeholder="Enter additional description (optional)..."></textarea>
+                    </div>
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">
@@ -364,43 +378,29 @@
                     <h5 class="modal-title">View Task</h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                 </div>
-                <form id="viewEditForm">
-                    <div class="modal-body">
-                        <div class="mb-3">
-                            <label class="form-label fw-bold">Task Heading</label>
-                            <p class="form-control-plaintext border rounded p-2 bg-light" id="viewTaskName"></p>
-                            <input type="text" class="form-control d-none" id="editViewTaskName" required>
-                        </div>
-                        <div class="mb-3">
-                            <label class="form-label fw-bold">Description</label>
-                            <div class="border rounded p-3 bg-light" id="viewTaskDescription"
-                                style="min-height: 100px; max-height: 500px; overflow-y: auto; white-space: normal; line-height: 1.5; word-wrap: break-word;">
-                            </div>
-                            <textarea class="form-control d-none" id="editViewTaskDescription" rows="5"></textarea>
-                        </div>
-                        <div class="mb-3">
-                            <label class="form-label fw-bold">Additional Description</label>
-                            <div class="border rounded p-3 bg-light" id="viewTaskDescription2"
-                                style="min-height: 50px; max-height: 300px; overflow-y: auto; white-space: pre-wrap; line-height: 1.5; word-wrap: break-word;">
-                            </div>
-                            <textarea class="form-control d-none" id="editViewTaskDescription2" rows="3"></textarea>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Task Heading</label>
+                        <p class="form-control-plaintext border rounded p-2 bg-light" id="viewTaskName"></p>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Description</label>
+                        <div class="border rounded p-3 bg-light" id="viewTaskDescription"
+                            style="min-height: 100px; max-height: 500px; overflow-y: auto; white-space: normal; line-height: 1.5; word-wrap: break-word;">
                         </div>
                     </div>
-                    <div class="modal-footer">
-                        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">
-                            <i class="bi bi-x-circle"></i> Close
-                        </button>
-                        <button type="button" class="btn btn-warning" id="viewEditBtn">
-                            <i class="bi bi-pencil-square me-1"></i> Edit
-                        </button>
-                        <button type="button" class="btn btn-outline-secondary d-none" id="cancelEditBtn">
-                            <i class="bi bi-x-circle me-1"></i> Cancel
-                        </button>
-                        <button type="submit" class="btn btn-success d-none" id="saveEditBtn">
-                            <i class="bi bi-save me-1"></i> Save
-                        </button>
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Additional Description</label>
+                        <div class="border rounded p-3 bg-light" id="viewTaskDescription2"
+                            style="min-height: 50px; max-height: 300px; overflow-y: auto; white-space: pre-wrap; line-height: 1.5; word-wrap: break-word;">
+                        </div>
                     </div>
-                </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">
+                        <i class="bi bi-x-circle"></i> Close
+                    </button>
+                </div>
             </div>
         </div>
     </div>
@@ -573,6 +573,7 @@
 
             // Initialize CKEditor5 for second description fields
             let addTaskEditor2;
+            let editTaskEditor2;
 
             // Simple CKEditor5 initialization when Add Task modal is shown
             $('#addTaskModal').on('shown.bs.modal', function() {
@@ -680,6 +681,148 @@
                 }
             });
 
+            // Initialize CKEditor5 for Edit Task modal when shown
+            $('#editTaskModal').on('shown.bs.modal', function() {
+                console.log('Edit Task modal shown, checking CKEditor5...');
+                // Only initialize if not already done
+                if (!editTaskEditor2) {
+                    const element = document.querySelector('#editTaskDescription2');
+                    console.log('Edit modal element found:', element);
+                    console.log('ClassicEditor available:', typeof ClassicEditor !== 'undefined');
+
+                    if (element && typeof ClassicEditor !== 'undefined') {
+                        console.log('Initializing CKEditor5 for edit modal...');
+                        ClassicEditor
+                            .create(element, {
+                                toolbar: [
+                                    'heading',
+                                    '|',
+                                    'bold',
+                                    'italic',
+                                    '|',
+                                    'numberedList',
+                                    'bulletedList',
+                                    '|',
+                                    'outdent',
+                                    'indent',
+                                    '|',
+                                    'link',
+                                    'blockQuote',
+                                    'insertTable',
+                                    '|',
+                                    'undo',
+                                    'redo'
+                                ],
+                                placeholder: 'Enter additional description...'
+                            })
+                            .then(editor => {
+                                editTaskEditor2 = editor;
+                                console.log('CKEditor5 initialized successfully for edit modal');
+
+                                // Set the data from the stored value if available
+                                const storedDescription2 = $(element).data('pending-content');
+                                if (storedDescription2) {
+                                    editor.setData(storedDescription2);
+                                    $(element).removeData('pending-content');
+                                }
+                            })
+                            .catch(error => {
+                                console.error('CKEditor5 initialization error for edit modal:', error);
+                            });
+                    } else {
+                        console.error(
+                            'CKEditor5 element not found or ClassicEditor not available for edit modal');
+
+                        // Try again after a short delay in case the script is still loading
+                        const element = document.querySelector('#editTaskDescription2');
+                        if (element && typeof ClassicEditor === 'undefined') {
+                            console.log('Retrying CKEditor5 initialization for edit modal after delay...');
+                            setTimeout(() => {
+                                if (typeof ClassicEditor !== 'undefined') {
+                                    console.log(
+                                        'CKEditor5 now available for edit modal, initializing...'
+                                    );
+                                    ClassicEditor
+                                        .create(element, {
+                                            toolbar: [
+                                                'heading',
+                                                '|',
+                                                'bold',
+                                                'italic',
+                                                '|',
+                                                'numberedList',
+                                                'bulletedList',
+                                                '|',
+                                                'outdent',
+                                                'indent',
+                                                '|',
+                                                'link',
+                                                'blockQuote',
+                                                'insertTable',
+                                                '|',
+                                                'undo',
+                                                'redo'
+                                            ],
+                                            placeholder: 'Enter additional description...'
+                                        })
+                                        .then(editor => {
+                                            editTaskEditor2 = editor;
+                                            console.log(
+                                                'CKEditor5 initialized successfully for edit modal (delayed)'
+                                            );
+
+                                            // Set the data from the stored value if available
+                                            const storedDescription2 = $(element).data(
+                                                'pending-content');
+                                            if (storedDescription2) {
+                                                editor.setData(storedDescription2);
+                                                $(element).removeData('pending-content');
+                                            }
+                                        })
+                                        .catch(error => {
+                                            console.error(
+                                                'CKEditor5 delayed initialization error for edit modal:',
+                                                error);
+                                        });
+                                } else {
+                                    console.error(
+                                        'CKEditor5 still not available for edit modal after delay'
+                                    );
+                                }
+                            }, 1000);
+                        }
+                    }
+                } else {
+                    console.log('CKEditor5 already initialized for edit modal');
+                    // Set the data from the stored value if available
+                    const element = document.querySelector('#editTaskDescription2');
+                    const storedDescription2 = $(element).data('pending-content');
+                    if (storedDescription2) {
+                        editTaskEditor2.setData(storedDescription2);
+                        $(element).removeData('pending-content');
+                    }
+                }
+            });
+
+            // Clean up CKEditor5 when edit modal is hidden
+            $('#editTaskModal').on('hidden.bs.modal', function() {
+                if (editTaskEditor2) {
+                    editTaskEditor2.destroy().then(() => {
+                        editTaskEditor2 = null;
+                        console.log('CKEditor5 destroyed for edit modal');
+                    }).catch(error => {
+                        console.error('Error destroying CKEditor5 for edit modal:', error);
+                        editTaskEditor2 = null;
+                    });
+                }
+
+                // Clear any pending content data
+                const element = document.querySelector('#editTaskDescription2');
+                if (element) {
+                    $(element).removeData('pending-content');
+                }
+            });
+
             function formatDate(dateStr) {
                 const d = new Date(dateStr);
                 return d.toLocaleString();
@@ -758,6 +901,9 @@
                                     <button class="btn btn-sm btn-outline-info me-2 view-btn" title="View">
                                         <i class="bi bi-eye"></i>
                                     </button>
+                                    <button class="btn btn-sm btn-outline-primary me-2 edit-btn" title="Edit">
+                                        <i class="bi bi-pencil-square"></i>
+                                    </button>
                                     <button class="btn btn-sm btn-outline-success me-2 complete-btn" title="Complete">
                                         <i class="bi bi-check2-circle"></i>
                                     </button>
@@ -772,9 +918,16 @@
                         $taskItem.find('.task-text')
                             .data('id', res.task.id)
                             .data('name', res.task.name)
-                            .data('description', res.task.description);
+                            .data('description', res.task.description)
+                            .data('description2', res.task.description2 || '');
 
                         $taskItem.find('.view-btn')
+                            .data('id', res.task.id)
+                            .data('name', res.task.name)
+                            .data('description', res.task.description)
+                            .data('description2', res.task.description2 || '');
+
+                        $taskItem.find('.edit-btn')
                             .data('id', res.task.id)
                             .data('name', res.task.name)
                             .data('description', res.task.description)
@@ -835,11 +988,12 @@
                 });
             });
 
-            // Edit Task Modal functionality - Click on task text to edit
+            // Edit Task Modal functionality - Click on task text to edit (quick edit)
             $(document).on('click', '.task-text', function() {
                 const id = $(this).data('id');
                 const name = $(this).data('name');
                 const description = $(this).data('description');
+                const description2 = $(this).data('description2') || '';
 
                 // Check if task is completed
                 const taskItem = $(`#task-${id}`);
@@ -867,6 +1021,48 @@
                     $('#editTaskDescription').val(description || '');
                 }
 
+                // Set additional description in CKEditor5 if available, otherwise in textarea
+                const editDesc2Element = document.querySelector('#editTaskDescription2');
+                if (editTaskEditor2) {
+                    editTaskEditor2.setData(description2);
+                } else {
+                    // Store the data temporarily for when the editor is initialized
+                    $(editDesc2Element).data('pending-content', description2);
+                    $('#editTaskDescription2').val(description2);
+                }
+
+                editModal.show();
+            });
+
+            // Edit Task Modal functionality - Click on edit button (explicit edit)
+            $(document).on('click', '.edit-btn', function() {
+                const id = $(this).data('id');
+                const name = $(this).data('name');
+                const description = $(this).data('description');
+                const description2 = $(this).data('description2') || '';
+
+                // Populate the edit modal
+                $('#editTaskId').val(id);
+                $('#editTaskName').val(name);
+
+                // Set description in TinyMCE if available, otherwise in textarea
+                const editTinyMCEInstance = tinymce.get('editTaskDescription');
+                if (editTinyMCEInstance) {
+                    editTinyMCEInstance.setContent(description || '');
+                } else {
+                    $('#editTaskDescription').val(description || '');
+                }
+
+                // Set additional description in CKEditor5 if available, otherwise in textarea
+                const editDesc2Element = document.querySelector('#editTaskDescription2');
+                if (editTaskEditor2) {
+                    editTaskEditor2.setData(description2);
+                } else {
+                    // Store the data temporarily for when the editor is initialized
+                    $(editDesc2Element).data('pending-content', description2);
+                    $('#editTaskDescription2').val(description2);
+                }
+
                 editModal.show();
             });
 
@@ -886,10 +1082,18 @@
                     description = $('#editTaskDescription').val().trim();
                 }
 
+                // Get additional description from CKEditor5 if available, otherwise from textarea
+                let description2 = '';
+                if (editTaskEditor2) {
+                    description2 = editTaskEditor2.getData().trim();
+                } else {
+                    description2 = $('#editTaskDescription2').val().trim();
+                }
+
                 if (!name || !description) {
                     Swal.fire({
                         icon: 'error',
-                        title: 'Please fill in all fields',
+                        title: 'Please fill in all required fields',
                         timer: 2000,
                         showConfirmButton: false
                     });
@@ -899,7 +1103,8 @@
                 $.post(`tasks/${id}/edit`, {
                     _token: token,
                     name,
-                    description
+                    description,
+                    description2
                 }, function(res) {
                     if (res.success) {
                         Swal.fire({
@@ -912,9 +1117,11 @@
                         // Update the task in the list
                         const taskItem = $(`#task-${id}`);
                         taskItem.find('.task-text').text(name).data('name', name).data(
-                            'description', description);
+                            'description', description).data('description2', description2);
                         taskItem.find('.view-btn').data('name', name).data('description',
-                            description);
+                            description).data('description2', description2);
+                        taskItem.find('.edit-btn').data('name', name).data('description',
+                            description).data('description2', description2);
 
                         // Clear and hide modal
                         $('#editTaskId').val('');
@@ -924,6 +1131,13 @@
                             editTinyMCEInstance.setContent('');
                         } else {
                             $('#editTaskDescription').val('');
+                        }
+
+                        // Clear additional description field
+                        if (editTaskEditor2) {
+                            editTaskEditor2.setData('');
+                        } else {
+                            $('#editTaskDescription2').val('');
                         }
 
                         editModal.hide();
@@ -954,10 +1168,6 @@
                 const description = $(this).data('description');
                 const description2 = $(this).data('description2') || '';
 
-                // Check if task is completed by looking at the parent task item
-                const taskItem = $(`#task-${id}`);
-                const isCompleted = taskItem.find('.completed').length > 0;
-
                 $('#viewTaskName').text(name);
 
                 // If we have a description, show it, otherwise show no description message
@@ -974,17 +1184,6 @@
                 } else {
                     $('#viewTaskDescription2').html(
                         '<p class="text-muted"><em>No additional description</em></p>');
-                }
-
-                // Store task data for edit functionality
-                $('#viewEditBtn').data('id', id).data('name', name).data('description', description).data(
-                    'description2', description2);
-
-                // Hide/show edit button based on completion status
-                if (isCompleted) {
-                    $('#viewEditBtn').hide();
-                } else {
-                    $('#viewEditBtn').show();
                 }
 
                 viewModal.show();
@@ -1044,263 +1243,6 @@
                         '<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100" viewBox="0 0 100 100"><rect width="100" height="100" fill="#f8f9fa" stroke="#dee2e6" stroke-dasharray="5,5"/><text x="50" y="50" text-anchor="middle" dy=".3em" fill="#6c757d" font-family="Arial, sans-serif" font-size="12">Image not found</text></svg>'
                     ));
                 }
-            });
-
-            // Edit from View Modal - WITH TINYMCE
-            $('#viewEditBtn').on('click', function() {
-                // Switch to edit mode
-                $('#viewTaskName').addClass('d-none');
-                $('#viewTaskDescription').addClass('d-none');
-                $('#viewTaskDescription2').addClass('d-none');
-                $('#editViewTaskName').removeClass('d-none').val($(this).data('name'));
-                $('#editViewTaskDescription').removeClass('d-none');
-                $('#editViewTaskDescription2').removeClass('d-none').val($(this).data('description2') ||
-                    '');
-
-                // Initialize TinyMCE for this specific textarea with error handling
-                if (typeof tinymce !== 'undefined') {
-                    tinymce.init({
-                        selector: '#editViewTaskDescription',
-                        height: 300,
-                        menubar: false,
-                        plugins: [
-                            'advlist', 'autolink', 'lists', 'link', 'image', 'charmap',
-                            'preview',
-                            'anchor', 'searchreplace', 'visualblocks', 'code', 'fullscreen',
-                            'insertdatetime', 'media', 'table', 'help', 'wordcount'
-                        ],
-                        toolbar: 'undo redo | blocks | bold italic underline strikethrough | ' +
-                            'alignleft aligncenter alignright alignjustify | ' +
-                            'bullist numlist outdent indent | link image | removeformat | help',
-                        file_picker_types: 'image',
-                        file_picker_callback: function(callback, value, meta) {
-                            if (meta.filetype === 'image') {
-                                const input = document.createElement('input');
-                                input.setAttribute('type', 'file');
-                                input.setAttribute('accept', 'image/*');
-                                input.addEventListener('change', function(e) {
-                                    const file = e.target.files[0];
-                                    if (file) {
-                                        // Validate file type
-                                        if (!file.type.startsWith('image/')) {
-                                            Swal.fire({
-                                                icon: 'error',
-                                                title: 'Invalid File Type',
-                                                text: 'Please select an image file (JPG, PNG, GIF, etc.)',
-                                                timer: 3000
-                                            });
-                                            return;
-                                        }
-
-                                        // Check file size (limit to 10MB)
-                                        if (file.size > 10485760) {
-                                            Swal.fire({
-                                                icon: 'error',
-                                                title: 'File Too Large',
-                                                text: 'Please select an image smaller than 10MB.',
-                                                timer: 3000
-                                            });
-                                            return;
-                                        }
-
-                                        // Create FormData and upload to server
-                                        const formData = new FormData();
-                                        formData.append('image', file);
-                                        formData.append('_token', token);
-
-                                        // Show loading indicator
-                                        Swal.fire({
-                                            title: 'Uploading image...',
-                                            allowOutsideClick: false,
-                                            didOpen: () => {
-                                                Swal.showLoading();
-                                            }
-                                        });
-
-                                        // Upload to server
-                                        fetch('{{ route('upload.image') }}', {
-                                                method: 'POST',
-                                                body: formData,
-                                                credentials: 'same-origin',
-                                                headers: {
-                                                    'X-Requested-With': 'XMLHttpRequest'
-                                                }
-                                            })
-                                            .then(response => {
-                                                if (!response.ok) {
-                                                    throw new Error(
-                                                        `HTTP error! status: ${response.status}`
-                                                    );
-                                                }
-                                                return response.json();
-                                            })
-                                            .then(data => {
-                                                Swal.close();
-                                                if (data.success) {
-                                                    callback(data.url, {
-                                                        alt: file.name
-                                                    });
-                                                } else {
-                                                    Swal.fire({
-                                                        icon: 'error',
-                                                        title: 'Upload Failed',
-                                                        text: data
-                                                            .message ||
-                                                            'Failed to upload image',
-                                                        timer: 3000
-                                                    });
-                                                }
-                                            })
-                                            .catch(error => {
-                                                Swal.close();
-                                                console.error('Upload error:',
-                                                    error);
-                                                Swal.fire({
-                                                    icon: 'error',
-                                                    title: 'Upload Error',
-                                                    text: 'Network error occurred while uploading image',
-                                                    timer: 3000
-                                                });
-                                            });
-                                    }
-                                });
-                                input.click();
-                            }
-                        },
-                        content_style: 'body { font-family: Arial, sans-serif; font-size: 14px; line-height:1.6; } img { max-width: 100%; height: auto; }',
-                        branding: false,
-                        promotion: false,
-                        setup: function(editor) {
-                            editor.on('init', function() {
-                                // Set content after editor is initialized
-                                editor.setContent($('#viewEditBtn').data(
-                                    'description'));
-                            });
-                            editor.on('change', function() {
-                                editor.save();
-                            });
-                        }
-                    });
-                } else {
-                    // Fallback if TinyMCE is not available
-                    $('#editViewTaskDescription').val($('#viewEditBtn').data('description'));
-                }
-
-                // Show/hide buttons
-                $('#viewEditBtn').addClass('d-none');
-                $('#cancelEditBtn').removeClass('d-none');
-                $('#saveEditBtn').removeClass('d-none');
-            });
-
-            // Cancel Edit in View Modal - WITH TINYMCE
-            $('#cancelEditBtn').on('click', function() {
-                // Destroy TinyMCE instance if it exists
-                if (tinymce.get('editViewTaskDescription')) {
-                    tinymce.get('editViewTaskDescription').destroy();
-                }
-
-                // Switch back to view mode
-                $('#viewTaskName').removeClass('d-none');
-                $('#viewTaskDescription').removeClass('d-none');
-                $('#viewTaskDescription2').removeClass('d-none');
-                $('#editViewTaskName').addClass('d-none');
-                $('#editViewTaskDescription').addClass('d-none');
-                $('#editViewTaskDescription2').addClass('d-none');
-
-                // Show/hide buttons
-                $('#viewEditBtn').removeClass('d-none');
-                $('#cancelEditBtn').addClass('d-none');
-                $('#saveEditBtn').addClass('d-none');
-            });
-
-
-
-            // Save Edit in View Modal - WITH TINYMCE
-            $('#viewEditForm').on('submit', function(e) {
-                e.preventDefault();
-
-                const id = $('#viewEditBtn').data('id');
-                const name = $('#editViewTaskName').val().trim();
-                let description = '';
-
-                // Get content from TinyMCE if it exists, otherwise from textarea
-                if (tinymce.get('editViewTaskDescription')) {
-                    description = tinymce.get('editViewTaskDescription').getContent().trim();
-                } else {
-                    description = $('#editViewTaskDescription').val().trim();
-                }
-
-                // Get second description from textarea (no TinyMCE)
-                const description2 = $('#editViewTaskDescription2').val().trim();
-
-                if (!name || !description) {
-                    Swal.fire({
-                        icon: 'error',
-                        title: 'Please fill in all required fields',
-                        timer: 2000,
-                        showConfirmButton: false
-                    });
-                    return;
-                }
-
-                $.post(`tasks/${id}/edit`, {
-                    _token: token,
-                    name,
-                    description,
-                    description2
-                }, function(res) {
-                    if (res.success) {
-                        Swal.fire({
-                            icon: 'success',
-                            title: 'Task Updated!',
-                            timer: 2000,
-                            showConfirmButton: false
-                        });
-
-                        // Update the task in the list
-                        const taskItem = $(`#task-${id}`);
-                        taskItem.find('.task-text').text(name);
-                        taskItem.find('.view-btn').data('name', name).data('description',
-                            description).data('description2', description2);
-
-                        // Update the view modal display
-                        $('#viewTaskName').text(name);
-                        $('#viewTaskDescription').html(description);
-                        if (description2 && description2.trim() !== '') {
-                            $('#viewTaskDescription2').html(description2);
-                        } else {
-                            $('#viewTaskDescription2').html(
-                                '<p class="text-muted"><em>No additional description</em></p>');
-                        }
-                        $('#viewEditBtn').data('name', name).data('description', description).data(
-                            'description2', description2);
-
-                        // Destroy TinyMCE instance if it exists
-                        if (tinymce.get('editViewTaskDescription')) {
-                            tinymce.get('editViewTaskDescription').destroy();
-                        }
-
-                        // Switch back to view mode
-                        $('#viewTaskName').removeClass('d-none');
-                        $('#viewTaskDescription').removeClass('d-none');
-                        $('#viewTaskDescription2').removeClass('d-none');
-                        $('#editViewTaskName').addClass('d-none');
-                        $('#editViewTaskDescription').addClass('d-none');
-                        $('#editViewTaskDescription2').addClass('d-none');
-
-                        // Show/hide buttons
-                        $('#viewEditBtn').removeClass('d-none');
-                        $('#cancelEditBtn').addClass('d-none');
-                        $('#saveEditBtn').addClass('d-none');
-                    }
-                }).fail(function(xhr) {
-                    Swal.fire({
-                        icon: 'error',
-                        title: 'Update Failed',
-                        text: 'Failed to update task',
-                        showConfirmButton: true
-                    });
-                });
             });
 
             // Complete / Undo
@@ -1375,6 +1317,9 @@
                                         <button class="btn btn-sm btn-outline-info me-2 view-btn" title="View">
                                             <i class="bi bi-eye"></i>
                                         </button>
+                                        <button class="btn btn-sm btn-outline-primary me-2 edit-btn" title="Edit">
+                                            <i class="bi bi-pencil-square"></i>
+                                        </button>
                                         <button class="btn btn-sm btn-outline-success me-2 complete-btn" title="Complete">
                                             <i class="bi bi-check2-circle"></i>
                                         </button>
@@ -1390,13 +1335,20 @@
                                 .text(name)
                                 .data('id', id)
                                 .data('name', name)
-                                .data('description', description);
+                                .data('description', description)
+                                .data('description2', description2);
 
                             $pendingTask.find('small').text(
                                 `Created: ${formatDate(res.created_at)}`);
 
                             // Set data attributes for buttons
                             $pendingTask.find('.view-btn')
+                                .data('id', id)
+                                .data('name', name)
+                                .data('description', description)
+                                .data('description2', description2);
+
+                            $pendingTask.find('.edit-btn')
                                 .data('id', id)
                                 .data('name', name)
                                 .data('description', description)
