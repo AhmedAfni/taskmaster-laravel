@@ -177,13 +177,33 @@ class TaskController extends Controller
                 // Store in storage/app/public/task-images
                 $path = $image->storeAs('task-images', $filename, 'public');
 
-                // Return the URL that can be used in TinyMCE
-                $url = asset('storage/' . $path);
+                // Generate absolute URL with proper base URL
+                $baseUrl = config('app.url');
+                $url = $baseUrl . '/storage/' . $path;
+
+                // Alternative: Use asset() but ensure it generates absolute URL
+                $assetUrl = asset('storage/' . $path);
+
+                // Log for debugging
+                \Log::info('Image uploaded', [
+                    'filename' => $filename,
+                    'path' => $path,
+                    'config_url' => $baseUrl,
+                    'asset_url' => $assetUrl,
+                    'final_url' => $url,
+                    'user_agent' => $request->header('User-Agent'),
+                    'referer' => $request->header('Referer')
+                ]);
 
                 return response()->json([
                     'success' => true,
-                    'url' => $url,
-                    'path' => $path
+                    'url' => $url, // Use the absolute URL with config base
+                    'path' => $path,
+                    'debug' => [
+                        'config_url' => $baseUrl,
+                        'asset_url' => $assetUrl,
+                        'final_url' => $url
+                    ]
                 ]);
             }
 
@@ -193,11 +213,41 @@ class TaskController extends Controller
             ], 400);
 
         } catch (\Exception $e) {
+            \Log::error('Image upload failed', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+
             return response()->json([
                 'success' => false,
                 'message' => 'Failed to upload image: ' . $e->getMessage()
             ], 500);
         }
+    }
+
+    /**
+     * Get task data for API calls (used by modals)
+     */
+    public function getTaskData(Task $task)
+    {
+        // Ensure the task belongs to the authenticated user
+        if ($task->user_id !== Auth::id()) {
+            return response()->json(['error' => 'Unauthorized'], 403);
+        }
+
+        return response()->json([
+            'success' => true,
+            'task' => [
+                'id' => $task->id,
+                'name' => $task->name,
+                'description' => $task->description,
+                'description2' => $task->description2,
+                'completed' => $task->completed,
+                'created_at' => $task->created_at,
+                'updated_at' => $task->updated_at,
+                'completed_at' => $task->completed_at
+            ]
+        ]);
     }
 
     /**

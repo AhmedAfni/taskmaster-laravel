@@ -23,13 +23,19 @@ class AdminController extends Controller
 
     public function completeTask(Task $task)
     {
-        $task->update(['completed' => true]);
+        $task->update([
+            'completed' => true,
+            'completed_at' => now()
+        ]);
         return back()->with('success', 'Task marked as completed.');
     }
 
     public function undoTask(Task $task)
     {
-        $task->update(['completed' => false]);
+        $task->update([
+            'completed' => false,
+            'completed_at' => null
+        ]);
         return back()->with('success', 'Task marked as incomplete.');
     }
 
@@ -37,14 +43,36 @@ class AdminController extends Controller
     {
         $request->validate([
             'name' => 'required|string|max:255',
-            'description' => 'required|string|max:16777215'
+            'description' => 'required|string|max:16777215',
+            'description2' => 'nullable|string|max:16777215'
         ]);
 
         $task->update([
             'name' => $request->name,
-            'description' => $request->description
+            'description' => $request->description,
+            'description2' => $request->description2
         ]);
         return back()->with('success', 'Task updated successfully.');
+    }
+
+    /**
+     * Get task data for API calls (used by admin modals)
+     */
+    public function getTaskData(Task $task)
+    {
+        return response()->json([
+            'success' => true,
+            'task' => [
+                'id' => $task->id,
+                'name' => $task->name,
+                'description' => $task->description,
+                'description2' => $task->description2,
+                'completed' => $task->completed,
+                'created_at' => $task->created_at,
+                'updated_at' => $task->updated_at,
+                'completed_at' => $task->completed_at
+            ]
+        ]);
     }
 
     public function deleteTask(Task $task)
@@ -65,12 +93,14 @@ class AdminController extends Controller
             'user_id' => 'required|exists:users,id',
             'task_name' => 'required|string|max:255',
             'task_description' => 'required|string|max:16777215',
+            'task_description2' => 'nullable|string|max:16777215',
         ]);
 
         Task::create([
             'user_id' => $request->user_id,
             'name' => $request->task_name,
             'description' => $request->task_description,
+            'description2' => $request->task_description2,
             'completed' => false,
         ]);
 

@@ -31,6 +31,9 @@ Route::middleware('auth')->group(function () {
     // Image upload route
     Route::post('/upload-image', [TaskController::class, 'uploadImage'])->name('upload.image');
 
+    // API route for fetching individual task data (for modals)
+    Route::get('/api/tasks/{task}', [TaskController::class, 'getTaskData'])->name('api.tasks.show');
+
     // Fallback route for serving images if symbolic link fails
     Route::get('/storage/task-images/{filename}', [TaskController::class, 'serveImage'])->name('serve.image');
 });
@@ -60,5 +63,11 @@ Route::prefix('admin')->group(function () {
         Route::post('tasks/{task}/undo', [AdminController::class, 'undoTask'])->name('admin.tasks.undo');
         Route::post('tasks/{task}/edit', [AdminController::class, 'editTask'])->name('admin.tasks.edit');
         Route::post('tasks/{task}/delete', [AdminController::class, 'deleteTask'])->name('admin.tasks.delete');
+
+        // Admin image upload route (uses same controller as user side)
+        Route::post('upload-image', [TaskController::class, 'uploadImage'])->name('admin.upload.image');
+
+        // Admin API route for fetching task data
+        Route::get('api/tasks/{task}', [AdminController::class, 'getTaskData'])->name('admin.api.tasks.show');
     });
 });

@@ -582,7 +582,7 @@
                                 });
 
                                 // Upload to server
-                                fetch('{{ route('admin.upload.image') }}', {
+                                fetch('{{ route('upload.image') }}', {
                                         method: 'POST',
                                         body: formData,
                                         credentials: 'same-origin',
@@ -594,7 +594,7 @@
                                         if (!response.ok) {
                                             throw new Error(
                                                 `HTTP error! status: ${response.status}`
-                                            );
+                                                );
                                         }
                                         return response.json();
                                     })
@@ -748,7 +748,7 @@
                                 });
 
                                 // Upload to server
-                                fetch('{{ route('admin.upload.image') }}', {
+                                fetch('{{ route('upload.image') }}', {
                                         method: 'POST',
                                         body: formData,
                                         credentials: 'same-origin',
@@ -760,7 +760,7 @@
                                         if (!response.ok) {
                                             throw new Error(
                                                 `HTTP error! status: ${response.status}`
-                                            );
+                                                );
                                         }
                                         return response.json();
                                     })
