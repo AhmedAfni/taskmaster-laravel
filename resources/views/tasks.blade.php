@@ -13,6 +13,7 @@
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <script src="https://cdn.jsdelivr.net/npm/tinymce@6/tinymce.min.js" referrerpolicy="origin"></script>
+    <script src="https://cdn.ckeditor.com/ckeditor5/39.0.1/classic/ckeditor.js"></script>
 
     <style>
         .completed {
@@ -410,6 +411,40 @@
     </div>
 
     <!-- JS -->
+    <style>
+        /* Style for CKEditor5 tables in view modal */
+        #viewTaskDescription2 table,
+        #viewTaskDescription table {
+            border-collapse: collapse;
+            width: 100%;
+            margin: 15px 0;
+        }
+
+        #viewTaskDescription2 table td,
+        #viewTaskDescription2 table th,
+        #viewTaskDescription table td,
+        #viewTaskDescription table th {
+            border: 1px solid #dee2e6;
+            padding: 8px 12px;
+            text-align: left;
+        }
+
+        #viewTaskDescription2 table th,
+        #viewTaskDescription table th {
+            background-color: #f8f9fa;
+            font-weight: bold;
+        }
+
+        #viewTaskDescription2 table tbody tr:nth-child(even),
+        #viewTaskDescription table tbody tr:nth-child(even) {
+            background-color: #f8f9fa;
+        }
+
+        #viewTaskDescription2 table tbody tr:hover,
+        #viewTaskDescription table tbody tr:hover {
+            background-color: #e9ecef;
+        }
+    </style>
     <script>
         $(function() {
             const token = $('meta[name="csrf-token"]').attr('content');
@@ -536,6 +571,115 @@
                 console.warn('TinyMCE is not loaded. Rich text editing will not be available.');
             }
 
+            // Initialize CKEditor5 for second description fields
+            let addTaskEditor2;
+
+            // Simple CKEditor5 initialization when Add Task modal is shown
+            $('#addTaskModal').on('shown.bs.modal', function() {
+                console.log('Add Task modal shown, checking CKEditor5...');
+                // Only initialize if not already done
+                if (!addTaskEditor2) {
+                    const element = document.querySelector('#taskDescription2');
+                    console.log('Element found:', element);
+                    console.log('ClassicEditor available:', typeof ClassicEditor !== 'undefined');
+
+                    if (element && typeof ClassicEditor !== 'undefined') {
+                        console.log('Initializing CKEditor5...');
+                        ClassicEditor
+                            .create(element, {
+                                toolbar: [
+                                    'heading',
+                                    '|',
+                                    'bold',
+                                    'italic',
+                                    '|',
+                                    'numberedList',
+                                    'bulletedList',
+                                    '|',
+                                    'outdent',
+                                    'indent',
+                                    '|',
+                                    'link',
+                                    'blockQuote',
+                                    'insertTable',
+                                    '|',
+                                    'undo',
+                                    'redo'
+                                ],
+                                placeholder: 'Enter additional description...'
+                            })
+                            .then(editor => {
+                                addTaskEditor2 = editor;
+                                console.log('CKEditor5 initialized successfully');
+                            })
+                            .catch(error => {
+                                console.error('CKEditor5 initialization error:', error);
+                            });
+                    } else {
+                        console.error('CKEditor5 element not found or ClassicEditor not available');
+                        console.log('Element:', element);
+                        console.log('ClassicEditor type:', typeof ClassicEditor);
+
+                        // Try again after a short delay in case the script is still loading
+                        if (element && typeof ClassicEditor === 'undefined') {
+                            console.log('Retrying CKEditor5 initialization after delay...');
+                            setTimeout(() => {
+                                if (typeof ClassicEditor !== 'undefined') {
+                                    console.log('CKEditor5 now available, initializing...');
+                                    ClassicEditor
+                                        .create(element, {
+                                            toolbar: [
+                                                'heading',
+                                                '|',
+                                                'bold',
+                                                'italic',
+                                                '|',
+                                                'numberedList',
+                                                'bulletedList',
+                                                '|',
+                                                'outdent',
+                                                'indent',
+                                                '|',
+                                                'link',
+                                                'blockQuote',
+                                                'insertTable',
+                                                '|',
+                                                'undo',
+                                                'redo'
+                                            ],
+                                            placeholder: 'Enter additional description...'
+                                        })
+                                        .then(editor => {
+                                            addTaskEditor2 = editor;
+                                            console.log(
+                                                'CKEditor5 initialized successfully (delayed)'
+                                            );
+                                        })
+                                        .catch(error => {
+                                            console.error(
+                                                'CKEditor5 delayed initialization error:',
+                                                error);
+                                        });
+                                } else {
+                                    console.error('CKEditor5 still not available after delay');
+                                }
+                            }, 1000);
+                        }
+                    }
+                } else {
+                    console.log('CKEditor5 already initialized');
+                }
+            });
+
+            // Clean up CKEditor5 when modal is hidden
+            $('#addTaskModal').on('hidden.bs.modal', function() {
+                if (addTaskEditor2) {
+                    addTaskEditor2.destroy().then(() => {
+                        addTaskEditor2 = null;
+                    });
+                }
+            });
+
             function formatDate(dateStr) {
                 const d = new Date(dateStr);
                 return d.toLocaleString();
@@ -569,8 +713,13 @@
                     description = $('#taskDescription').val().trim();
                 }
 
-                // Get second description from textarea (no TinyMCE)
-                let description2 = $('#taskDescription2').val().trim();
+                // Get second description from CKEditor5 if available, otherwise from textarea
+                let description2 = '';
+                if (addTaskEditor2) {
+                    description2 = addTaskEditor2.getData().trim();
+                } else {
+                    description2 = $('#taskDescription2').val().trim();
+                }
 
                 if (!name || !description) {
                     Swal.fire({
@@ -645,8 +794,12 @@
                             $('#taskDescription').val('');
                         }
 
-                        // Clear second description field (normal textarea)
-                        $('#taskDescription2').val('');
+                        // Clear second description field (CKEditor5)
+                        if (addTaskEditor2) {
+                            addTaskEditor2.setData('');
+                        } else {
+                            $('#taskDescription2').val('');
+                        }
 
                         addModal.hide();
 
@@ -817,7 +970,7 @@
 
                 // Handle second description field
                 if (description2 && description2.trim() !== '') {
-                    $('#viewTaskDescription2').text(description2);
+                    $('#viewTaskDescription2').html(description2);
                 } else {
                     $('#viewTaskDescription2').html(
                         '<p class="text-muted"><em>No additional description</em></p>');
@@ -902,7 +1055,7 @@
                 $('#editViewTaskName').removeClass('d-none').val($(this).data('name'));
                 $('#editViewTaskDescription').removeClass('d-none');
                 $('#editViewTaskDescription2').removeClass('d-none').val($(this).data('description2') ||
-                '');
+                    '');
 
                 // Initialize TinyMCE for this specific textarea with error handling
                 if (typeof tinymce !== 'undefined') {
@@ -1114,7 +1267,7 @@
                         $('#viewTaskName').text(name);
                         $('#viewTaskDescription').html(description);
                         if (description2 && description2.trim() !== '') {
-                            $('#viewTaskDescription2').text(description2);
+                            $('#viewTaskDescription2').html(description2);
                         } else {
                             $('#viewTaskDescription2').html(
                                 '<p class="text-muted"><em>No additional description</em></p>');
@@ -1170,7 +1323,7 @@
                         const name = res.name; // Get name from server response
                         const description = res.description; // Get description from server response
                         const description2 = res.description2 ||
-                        ''; // Get second description from server response
+                            ''; // Get second description from server response
 
                         if (res.completed) {
                             // Create completed task structure
@@ -1321,8 +1474,7 @@
                     $('#taskDescription').val('');
                 }
 
-                // Clear second description field (normal textarea)
-                $('#taskDescription2').val('');
+                // Clear second description field (CKEditor5) - handled by the modal event above
             });
 
             $('#editTaskModal').on('hidden.bs.modal', function() {
