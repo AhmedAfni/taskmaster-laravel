@@ -119,9 +119,6 @@
                                         title="{{ $task->name }}">
                                         {{ Str::limit($task->name, 50) }}
                                     </span>
-                                    @if ($task->completed)
-                                        <i class="bi bi-check-circle-fill text-success ms-2" title="Task completed"></i>
-                                    @endif
                                 </div>
                             </td>
 
@@ -158,7 +155,7 @@
                             <td>
                                 @if ($task->completed && $task->completed_at)
                                     <small
-                                        class="text-success">{{ \Carbon\Carbon::parse($task->completed_at)->format('d M Y, h:i A') }}</small>
+                                        class="text-muted">{{ \Carbon\Carbon::parse($task->completed_at)->format('d M Y, h:i A') }}</small>
                                 @else
                                     <span class="text-muted">-</span>
                                 @endif
@@ -180,7 +177,7 @@
                                         class="d-inline">
                                         @csrf
                                         <button type="submit"
-                                            class="btn btn-sm {{ $task->completed ? 'btn-outline-warning' : 'btn-outline-success' }}"
+                                            class="btn btn-sm {{ $task->completed ? 'btn-outline-success' : 'btn-outline-success' }}"
                                             title="{{ $task->completed ? 'Mark as Incomplete' : 'Mark as Complete' }}">
                                             <i
                                                 class="bi {{ $task->completed ? 'bi-arrow-counterclockwise' : 'bi-check2-circle' }}"></i>
@@ -535,6 +532,127 @@
         // Global variables for CKEditor instances
         let assignTaskEditor2;
         let editTaskEditor2 = null;
+
+        // Function to format date
+        function formatDate(dateString) {
+            const date = new Date(dateString);
+            return date.toLocaleDateString('en-US', {
+                day: '2-digit',
+                month: 'short',
+                year: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit',
+                hour12: true
+            });
+        }
+
+        // Function to update task row after completion/undo
+        function updateTaskRowAfterCompletion(taskRow, task, isCompleting) {
+            const nameCell = taskRow.find('td:nth-child(2)');
+            const statusCell = taskRow.find('td:nth-child(3)');
+            const completedCell = taskRow.find('td:nth-child(6)');
+            const actionButtons = taskRow.find('td:nth-child(7)');
+
+            // Update task name with completion styling
+            if (isCompleting) {
+                nameCell.find('span').addClass('text-muted text-decoration-line-through');
+                nameCell.find('i.bi-check-circle-fill').remove();
+            } else {
+                nameCell.find('span').removeClass('text-muted text-decoration-line-through');
+                nameCell.find('i.bi-check-circle-fill').remove();
+            }
+
+            // Update status badge
+            if (isCompleting) {
+                statusCell.html(
+                    '<span class="badge bg-success"><i class="bi bi-check-circle-fill me-1"></i>Completed</span>');
+            } else {
+                statusCell.html('<span class="badge bg-warning text-dark"><i class="bi bi-clock me-1"></i>Pending</span>');
+            }
+
+            // Update completed date
+            if (isCompleting && task.completed_at) {
+                completedCell.html(`<small class="text-muted">${formatDate(task.completed_at)}</small>`);
+            } else {
+                completedCell.html('<span class="text-muted">-</span>');
+            }
+
+            // Update action button
+            const completeForm = actionButtons.find('form[action*="/complete"], form[action*="/undo"]');
+            const completeBtn = completeForm.find('button[type="submit"]');
+
+            if (isCompleting) {
+                // Update form action from /complete to /undo
+                const currentAction = completeForm.attr('action');
+                const newAction = currentAction.replace('/complete', '/undo');
+                completeForm.attr('action', newAction);
+
+                // Update button styling and text
+                completeBtn.removeClass('btn-outline-success').addClass('btn-outline-success');
+                completeBtn.attr('title', 'Mark as Incomplete');
+                completeBtn.find('i').removeClass('bi-check2-circle').addClass('bi-arrow-counterclockwise');
+            } else {
+                // Update form action from /undo to /complete
+                const currentAction = completeForm.attr('action');
+                const newAction = currentAction.replace('/undo', '/complete');
+                completeForm.attr('action', newAction);
+
+                // Update button styling and text
+                completeBtn.removeClass('btn-outline-success').addClass('btn-outline-success');
+                completeBtn.attr('title', 'Mark as Complete');
+                completeBtn.find('i').removeClass('bi-arrow-counterclockwise').addClass('bi-check2-circle');
+            }
+        }
+
+        // Function to add new task row to DataTable
+        function addNewTaskToTable(task) {
+            if ($.fn.DataTable.isDataTable('#userTasksTable')) {
+                const table = $('#userTasksTable').DataTable();
+
+                // Generate URLs properly
+                const completeUrl = `{{ url('admin/tasks') }}/${task.id}/complete`;
+                const deleteUrl = `{{ url('admin/tasks') }}/${task.id}/delete`;
+                const csrfToken = `{{ csrf_token() }}`;
+
+                const newRow = [
+                    '', // Index will be auto-filled
+                    `<div class="d-flex align-items-center">
+                        <span title="${task.name}">${task.name.length > 50 ? task.name.substring(0, 50) + '...' : task.name}</span>
+                    </div>`,
+                    `<span class="badge bg-warning text-dark">
+                        <i class="bi bi-clock me-1"></i>Pending
+                    </span>`,
+                    `${task.user.name}<br><small class="text-muted">${task.user.email}</small>`,
+                    `<small>${formatDate(task.created_at)}</small>`,
+                    `<span class="text-muted">-</span>`,
+                    `<div class="d-flex gap-1">
+                        <button type="button" class="btn btn-sm btn-outline-info" data-bs-toggle="modal"
+                            data-bs-target="#viewTaskModal" data-task-id="${task.id}" title="View Details">
+                            <i class="bi bi-eye"></i>
+                        </button>
+                        <form method="POST" action="${completeUrl}" class="d-inline">
+                            <input type="hidden" name="_token" value="${csrfToken}">
+                            <button type="submit" class="btn btn-sm btn-outline-success" title="Mark as Complete">
+                                <i class="bi bi-check2-circle"></i>
+                            </button>
+                        </form>
+                        <button type="button" class="btn btn-sm btn-outline-primary" data-bs-toggle="modal"
+                            data-bs-target="#editTaskModal" data-task-id="${task.id}">
+                            <i class="bi bi-pencil-square"></i>
+                        </button>
+                        <form method="POST" action="${deleteUrl}" class="delete-task-form d-inline">
+                            <input type="hidden" name="_token" value="${csrfToken}">
+                            <button type="button" class="btn btn-sm btn-outline-danger delete-task-btn"
+                                title="Delete" data-task-id="${task.id}">
+                                <i class="bi bi-trash3"></i>
+                            </button>
+                        </form>
+                    </div>`
+                ];
+
+                table.row.add(newRow).draw();
+            }
+        }
 
         $(document).ready(function() {
             const $table = $('#userTasksTable');
@@ -1008,8 +1126,8 @@
                             showConfirmButton: false
                         });
 
-                        // Reload page to reflect status changes
-                        location.reload();
+                        // Update the task row without reload
+                        updateTaskRowAfterCompletion(taskRow, response.task, isCompleting);
                     },
                     error: function(xhr) {
                         let errorMessage = 'An error occurred';
@@ -1122,9 +1240,9 @@
                                 assignTaskEditor2.setData('');
                             }
 
-                            // Reload DataTable
-                            if ($.fn.DataTable.isDataTable('#userTasksTable')) {
-                                location.reload(); // Reload to show new task in table
+                            // Add new task to DataTable without reload
+                            if (response.task) {
+                                addNewTaskToTable(response.task);
                             }
                         },
                         error: function(xhr) {
@@ -1213,8 +1331,22 @@
                             form.reset();
                             $('#addUserModal').modal('hide');
 
-                            // Update user count and dropdown
-                            location.reload(); // Refresh to update user list and counts
+                            // Update user dropdown and count without full reload
+                            if (response.user) {
+                                // Add new user to the select dropdown
+                                const newOption = new Option(
+                                    `${response.user.name} (${response.user.email})`,
+                                    response.user.id);
+                                $('#user_id').append(newOption);
+
+                                // Update user count in the dashboard card
+                                const userCountCard = $('.card-body h3.text-primary');
+                                if (userCountCard.length) {
+                                    const currentCount = parseInt(userCountCard.text()) ||
+                                        0;
+                                    userCountCard.text(currentCount + 1);
+                                }
+                            }
                         },
                         error: function(xhr) {
                             let errorMessage = 'An error occurred';
@@ -1524,8 +1656,29 @@
                                 // Close modal
                                 $('#editTaskModal').modal('hide');
 
-                                // Reload page to reflect changes
-                                location.reload();
+                                // Update the task row in the table without reload
+                                const taskRow = $(
+                                    `button[data-task-id="${response.task.id}"]`
+                                ).closest('tr');
+                                if (taskRow.length) {
+                                    // Update task name in the table
+                                    const nameCell = taskRow.find(
+                                        'td:nth-child(2)');
+                                    const taskName = response.task.name;
+                                    const displayName = taskName.length > 50 ?
+                                        taskName.substring(0, 50) + '...' :
+                                        taskName;
+                                    nameCell.find('span').attr('title', taskName)
+                                        .text(displayName);
+
+                                    // Update view and edit button data attributes
+                                    taskRow.find(
+                                        'button[data-bs-target="#viewTaskModal"]'
+                                    ).attr('data-task-id', response.task.id);
+                                    taskRow.find(
+                                        'button[data-bs-target="#editTaskModal"]'
+                                    ).attr('data-task-id', response.task.id);
+                                }
                             },
                             error: function(xhr) {
                                 let errorMessage = 'An error occurred';

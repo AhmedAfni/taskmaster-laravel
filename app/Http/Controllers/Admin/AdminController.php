@@ -27,6 +27,26 @@ class AdminController extends Controller
             'completed' => true,
             'completed_at' => now()
         ]);
+
+        // Check if it's an AJAX request
+        if (request()->ajax()) {
+            // Reload the task with fresh data including the completed_at timestamp
+            $task = $task->fresh();
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Task marked as completed.',
+                'task' => [
+                    'id' => $task->id,
+                    'name' => $task->name,
+                    'completed' => $task->completed,
+                    'completed_at' => $task->completed_at,
+                    'created_at' => $task->created_at,
+                    'updated_at' => $task->updated_at
+                ]
+            ]);
+        }
+
         return back()->with('success', 'Task marked as completed.');
     }
 
@@ -36,6 +56,26 @@ class AdminController extends Controller
             'completed' => false,
             'completed_at' => null
         ]);
+
+        // Check if it's an AJAX request
+        if (request()->ajax()) {
+            // Reload the task with fresh data
+            $task = $task->fresh();
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Task marked as incomplete.',
+                'task' => [
+                    'id' => $task->id,
+                    'name' => $task->name,
+                    'completed' => $task->completed,
+                    'completed_at' => $task->completed_at,
+                    'created_at' => $task->created_at,
+                    'updated_at' => $task->updated_at
+                ]
+            ]);
+        }
+
         return back()->with('success', 'Task marked as incomplete.');
     }
 
@@ -52,6 +92,28 @@ class AdminController extends Controller
             'description' => $request->description,
             'description2' => $request->description2
         ]);
+
+        // Check if it's an AJAX request
+        if ($request->ajax()) {
+            // Reload the task with fresh data
+            $task = $task->fresh();
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Task updated successfully.',
+                'task' => [
+                    'id' => $task->id,
+                    'name' => $task->name,
+                    'description' => $task->description,
+                    'description2' => $task->description2,
+                    'completed' => $task->completed,
+                    'completed_at' => $task->completed_at,
+                    'created_at' => $task->created_at,
+                    'updated_at' => $task->updated_at
+                ]
+            ]);
+        }
+
         return back()->with('success', 'Task updated successfully.');
     }
 
@@ -78,6 +140,15 @@ class AdminController extends Controller
     public function deleteTask(Task $task)
     {
         $task->delete();
+
+        // Check if it's an AJAX request
+        if (request()->ajax()) {
+            return response()->json([
+                'success' => true,
+                'message' => 'Task deleted successfully.'
+            ]);
+        }
+
         return back()->with('success', 'Task deleted successfully.');
     }
 
@@ -96,13 +167,39 @@ class AdminController extends Controller
             'task_description2' => 'nullable|string|max:16777215',
         ]);
 
-        Task::create([
+        $task = Task::create([
             'user_id' => $request->user_id,
             'name' => $request->task_name,
             'description' => $request->task_description,
             'description2' => $request->task_description2,
             'completed' => false,
         ]);
+
+        // Check if it's an AJAX request
+        if ($request->ajax()) {
+            // Load the task with user relationship
+            $task = $task->load('user');
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Task assigned successfully.',
+                'task' => [
+                    'id' => $task->id,
+                    'name' => $task->name,
+                    'description' => $task->description,
+                    'description2' => $task->description2,
+                    'completed' => $task->completed,
+                    'completed_at' => $task->completed_at,
+                    'created_at' => $task->created_at,
+                    'updated_at' => $task->updated_at,
+                    'user' => [
+                        'id' => $task->user->id,
+                        'name' => $task->user->name,
+                        'email' => $task->user->email
+                    ]
+                ]
+            ]);
+        }
 
         return back()->with('success', 'Task assigned successfully.');
     }

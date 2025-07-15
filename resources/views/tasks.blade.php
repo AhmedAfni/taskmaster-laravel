@@ -300,7 +300,7 @@
     <!-- Add Task Modal -->
     <div class="modal fade" id="addTaskModal" tabindex="-1">
         <div class="modal-dialog modal-xl">
-            <form id="addTaskForm" class="modal-content">
+            <form id="addTaskForm" class="modal-content" novalidate>
                 <div class="modal-header">
                     <h5 class="modal-title">Add Task</h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
@@ -313,7 +313,7 @@
                     <div class="mb-3">
                         <label for="taskDescription" class="form-label">Description</label>
                         <textarea class="form-control" id="taskDescription" name="description" rows="3"
-                            placeholder="Enter task description..." required></textarea>
+                            placeholder="Enter task description..."></textarea>
                     </div>
                     <div class="mb-3">
                         <label for="taskDescription2" class="form-label">Additional Description</label>
@@ -336,7 +336,7 @@
     <!-- Edit Task Modal -->
     <div class="modal fade" id="editTaskModal" tabindex="-1">
         <div class="modal-dialog modal-xl">
-            <form id="modalEditForm" class="modal-content">
+            <form id="modalEditForm" class="modal-content" novalidate>
                 <div class="modal-header">
                     <h5 class="modal-title">Edit Task</h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
@@ -350,7 +350,7 @@
                     <div class="mb-3">
                         <label for="editTaskDescription" class="form-label">Description</label>
                         <textarea class="form-control" id="editTaskDescription" name="editTaskDescription" rows="3"
-                            placeholder="Enter task description..." required></textarea>
+                            placeholder="Enter task description..."></textarea>
                     </div>
                     <div class="mb-3">
                         <label for="editTaskDescription2" class="form-label">Additional Description</label>
@@ -443,6 +443,14 @@
         #viewTaskDescription2 table tbody tr:hover,
         #viewTaskDescription table tbody tr:hover {
             background-color: #e9ecef;
+        }
+
+        /* Fix for TinyMCE validation issues */
+        textarea[aria-hidden="true"] {
+            position: absolute !important;
+            left: -9999px !important;
+            opacity: 0 !important;
+            pointer-events: none !important;
         }
     </style>
     <script>
@@ -562,6 +570,27 @@
                     branding: false,
                     promotion: false,
                     setup: function(editor) {
+                        // Remove aria-hidden when editor is ready to prevent focus issues
+                        editor.on('init', function() {
+                            const element = editor.getElement();
+                            if (element) {
+                                element.removeAttribute('aria-hidden');
+                                element.setAttribute('tabindex', '-1');
+                                // Override browser validation to prevent focus issues
+                                element.setCustomValidity = function() {};
+                                console.log('TinyMCE editor initialized for:', element.id);
+                            }
+                        });
+
+                        // Handle focus events properly
+                        editor.on('focus', function() {
+                            const element = editor.getElement();
+                            if (element) {
+                                element.removeAttribute('aria-hidden');
+                            }
+                        });
+
+                        // Save content to textarea on change
                         editor.on('change', function() {
                             editor.save();
                         });
@@ -842,6 +871,34 @@
                 $('.card-body h4').eq(2).text(pendingTasks);
             }
 
+            // Prevent browser validation issues with TinyMCE hidden textareas
+            $(document).on('invalid', 'textarea', function(e) {
+                const textarea = this;
+
+                // Check if this is a TinyMCE textarea
+                if (textarea.hasAttribute('aria-hidden') || $(textarea).css('display') === 'none') {
+                    e.preventDefault();
+                    e.stopPropagation();
+
+                    const editor = tinymce.get(textarea.id);
+
+                    if (editor) {
+                        // Focus the TinyMCE editor instead
+                        editor.focus();
+
+                        // Show validation message
+                        Swal.fire({
+                            icon: 'warning',
+                            title: 'Validation Error',
+                            text: 'Please fill in the description field',
+                            confirmButtonColor: '#ffc107'
+                        });
+                    }
+
+                    return false;
+                }
+            });
+
             // Add Task
             $('#addTaskForm').on('submit', function(e) {
                 e.preventDefault();
@@ -850,24 +907,50 @@
                 // Get description from TinyMCE if available, otherwise from textarea
                 let description = '';
                 const tinyMCEInstance = tinymce.get('taskDescription');
-                if (tinyMCEInstance) {
-                    description = tinyMCEInstance.getContent().trim();
+                if (tinyMCEInstance && typeof tinyMCEInstance.getContent === 'function') {
+                    try {
+                        tinyMCEInstance.save();
+                        description = tinyMCEInstance.getContent().trim();
+                    } catch (error) {
+                        console.error('Error getting TinyMCE content:', error);
+                        description = $('#taskDescription').val().trim();
+                    }
                 } else {
                     description = $('#taskDescription').val().trim();
                 }
 
                 // Get second description from CKEditor5 if available, otherwise from textarea
                 let description2 = '';
-                if (addTaskEditor2) {
-                    description2 = addTaskEditor2.getData().trim();
+                if (addTaskEditor2 && typeof addTaskEditor2.getData === 'function') {
+                    try {
+                        description2 = addTaskEditor2.getData().trim();
+                    } catch (error) {
+                        console.error('Error getting CKEditor5 content:', error);
+                        description2 = $('#taskDescription2').val().trim();
+                    }
                 } else {
                     description2 = $('#taskDescription2').val().trim();
                 }
 
-                if (!name || !description) {
+                // Validate required fields
+                if (!name) {
                     Swal.fire({
                         icon: 'error',
-                        title: 'Please fill in all required fields',
+                        title: 'Validation Error',
+                        text: 'Task name is required',
+                        timer: 2000,
+                        showConfirmButton: false
+                    });
+                    return;
+                }
+
+                // For description, check if there's any meaningful content
+                const descTextContent = description.replace(/<[^>]*>/g, '').replace(/&nbsp;/g, ' ').trim();
+                if (!description || !descTextContent) {
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'Validation Error',
+                        text: 'Task description is required',
                         timer: 2000,
                         showConfirmButton: false
                     });
@@ -1070,95 +1153,142 @@
             $('#modalEditForm').on('submit', function(e) {
                 e.preventDefault();
 
+                console.log('Edit form submitted');
+
                 const id = $('#editTaskId').val();
                 const name = $('#editTaskName').val().trim();
 
-                // Get description from TinyMCE if available, otherwise from textarea
+                // Save TinyMCE content first
+                if (typeof tinymce !== 'undefined') {
+                    tinymce.triggerSave();
+                }
+
+                // Get description - simplified approach
                 let description = '';
                 const editTinyMCEInstance = tinymce.get('editTaskDescription');
                 if (editTinyMCEInstance) {
-                    description = editTinyMCEInstance.getContent().trim();
+                    description = editTinyMCEInstance.getContent();
                 } else {
-                    description = $('#editTaskDescription').val().trim();
+                    description = $('#editTaskDescription').val();
                 }
+                description = description ? description.trim() : '';
 
-                // Get additional description from CKEditor5 if available, otherwise from textarea
+                // Get additional description
                 let description2 = '';
                 if (editTaskEditor2) {
-                    description2 = editTaskEditor2.getData().trim();
+                    description2 = editTaskEditor2.getData();
                 } else {
-                    description2 = $('#editTaskDescription2').val().trim();
+                    description2 = $('#editTaskDescription2').val();
                 }
+                description2 = description2 ? description2.trim() : '';
 
-                if (!name || !description) {
+                console.log('Data to submit:', {
+                    id,
+                    name,
+                    description: description.substring(0, 100),
+                    description2: description2.substring(0, 100)
+                });
+
+                // Simple validation
+                if (!name) {
                     Swal.fire({
                         icon: 'error',
-                        title: 'Please fill in all required fields',
-                        timer: 2000,
-                        showConfirmButton: false
+                        title: 'Error',
+                        text: 'Task name is required'
                     });
                     return;
                 }
 
-                $.post(`tasks/${id}/edit`, {
-                    _token: token,
-                    name,
-                    description,
-                    description2
-                }, function(res) {
-                    if (res.success) {
-                        Swal.fire({
-                            icon: 'success',
-                            title: 'Task Updated!',
-                            timer: 2000,
-                            showConfirmButton: false
-                        });
-
-                        // Update the task in the list
-                        const taskItem = $(`#task-${id}`);
-                        taskItem.find('.task-text').text(name).data('name', name).data(
-                            'description', description).data('description2', description2);
-                        taskItem.find('.view-btn').data('name', name).data('description',
-                            description).data('description2', description2);
-                        taskItem.find('.edit-btn').data('name', name).data('description',
-                            description).data('description2', description2);
-
-                        // Clear and hide modal
-                        $('#editTaskId').val('');
-                        $('#editTaskName').val('');
-
-                        if (editTinyMCEInstance) {
-                            editTinyMCEInstance.setContent('');
-                        } else {
-                            $('#editTaskDescription').val('');
-                        }
-
-                        // Clear additional description field
-                        if (editTaskEditor2) {
-                            editTaskEditor2.setData('');
-                        } else {
-                            $('#editTaskDescription2').val('');
-                        }
-
-                        editModal.hide();
-                    }
-                }).fail(function(xhr) {
-                    let errorMessage = 'Failed to update task';
-
-                    if (xhr.responseJSON && xhr.responseJSON.message) {
-                        errorMessage = xhr.responseJSON.message;
-                    } else if (xhr.responseJSON && xhr.responseJSON.errors) {
-                        const errors = Object.values(xhr.responseJSON.errors).flat();
-                        errorMessage = errors.join(', ');
-                    }
-
+                if (!description) {
                     Swal.fire({
                         icon: 'error',
-                        title: 'Update Failed',
-                        text: errorMessage,
-                        showConfirmButton: true
+                        title: 'Error',
+                        text: 'Task description is required'
                     });
-                });
+                    return;
+                }
+
+                console.log('Validation passed, submitting...');
+
+                // Submit the form
+                $.post(`tasks/${id}/edit`, {
+                        _token: token,
+                        name: name,
+                        description: description,
+                        description2: description2
+                    })
+                    .done(function(res) {
+                        console.log('Success response:', res);
+                        if (res.success) {
+                            Swal.fire({
+                                icon: 'success',
+                                title: 'Task Updated!',
+                                timer: 2000,
+                                showConfirmButton: false
+                            });
+
+                            // Update the task in the list
+                            const taskItem = $(`#task-${id}`);
+                            taskItem.find('.task-text').text(name)
+                                .data('name', name)
+                                .data('description', description)
+                                .data('description2', description2);
+
+                            taskItem.find('.view-btn')
+                                .data('name', name)
+                                .data('description', description)
+                                .data('description2', description2);
+
+                            taskItem.find('.edit-btn')
+                                .data('name', name)
+                                .data('description', description)
+                                .data('description2', description2);
+
+                            // Close modal
+                            editModal.hide();
+
+                            // Clear form
+                            $('#editTaskId').val('');
+                            $('#editTaskName').val('');
+                            if (editTinyMCEInstance) {
+                                editTinyMCEInstance.setContent('');
+                            } else {
+                                $('#editTaskDescription').val('');
+                            }
+                            if (editTaskEditor2) {
+                                editTaskEditor2.setData('');
+                            } else {
+                                $('#editTaskDescription2').val('');
+                            }
+                        } else {
+                            Swal.fire({
+                                icon: 'error',
+                                title: 'Update Failed',
+                                text: res.message || 'Unknown error occurred'
+                            });
+                        }
+                    })
+                    .fail(function(xhr) {
+                        console.error('Request failed:', xhr);
+                        console.error('Status:', xhr.status);
+                        console.error('Response:', xhr.responseText);
+
+                        let errorMessage = 'Failed to update task';
+                        if (xhr.responseJSON) {
+                            if (xhr.responseJSON.message) {
+                                errorMessage = xhr.responseJSON.message;
+                            } else if (xhr.responseJSON.errors) {
+                                const errors = Object.values(xhr.responseJSON.errors).flat();
+                                errorMessage = errors.join(', ');
+                            }
+                        }
+
+                        Swal.fire({
+                            icon: 'error',
+                            title: 'Update Failed',
+                            text: errorMessage
+                        });
+                    });
             });
 
             // View Task
