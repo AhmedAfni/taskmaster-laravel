@@ -267,7 +267,7 @@
                             <div class="d-flex mt-2">
                                 <button class="btn btn-sm btn-outline-info me-2 view-btn" data-id="{{ $task->id }}"
                                     data-name="{{ $task->name }}" data-description="{{ $task->description }}"
-                                    title="View">
+                                    data-description2="{{ $task->description2 ?? '' }}" title="View">
                                     <i class="bi bi-eye"></i>
                                 </button>
                                 <button class="btn btn-sm btn-outline-success me-2 complete-btn"
@@ -304,6 +304,11 @@
                         <label for="taskDescription" class="form-label">Description</label>
                         <textarea class="form-control" id="taskDescription" name="description" rows="3"
                             placeholder="Enter task description..." required></textarea>
+                    </div>
+                    <div class="mb-3">
+                        <label for="taskDescription2" class="form-label">Additional Description</label>
+                        <textarea class="form-control" id="taskDescription2" name="description2" rows="3"
+                            placeholder="Enter additional description (optional)..."></textarea>
                     </div>
                 </div>
                 <div class="modal-footer">
@@ -371,6 +376,13 @@
                                 style="min-height: 100px; max-height: 500px; overflow-y: auto; white-space: normal; line-height: 1.5; word-wrap: break-word;">
                             </div>
                             <textarea class="form-control d-none" id="editViewTaskDescription" rows="5"></textarea>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">Additional Description</label>
+                            <div class="border rounded p-3 bg-light" id="viewTaskDescription2"
+                                style="min-height: 50px; max-height: 300px; overflow-y: auto; white-space: pre-wrap; line-height: 1.5; word-wrap: break-word;">
+                            </div>
+                            <textarea class="form-control d-none" id="editViewTaskDescription2" rows="3"></textarea>
                         </div>
                     </div>
                     <div class="modal-footer">
@@ -476,7 +488,7 @@
                                             if (!response.ok) {
                                                 throw new Error(
                                                     `HTTP error! status: ${response.status}`
-                                                    );
+                                                );
                                             }
                                             return response.json();
                                         })
@@ -557,10 +569,13 @@
                     description = $('#taskDescription').val().trim();
                 }
 
+                // Get second description from textarea (no TinyMCE)
+                let description2 = $('#taskDescription2').val().trim();
+
                 if (!name || !description) {
                     Swal.fire({
                         icon: 'error',
-                        title: 'Please fill in all fields',
+                        title: 'Please fill in all required fields',
                         timer: 2000,
                         showConfirmButton: false
                     });
@@ -570,6 +585,7 @@
                 $.post("{{ route('tasks.store') }}", {
                     name,
                     description,
+                    description2,
                     _token: token
                 }, function(res) {
                     if (res.success) {
@@ -612,7 +628,8 @@
                         $taskItem.find('.view-btn')
                             .data('id', res.task.id)
                             .data('name', res.task.name)
-                            .data('description', res.task.description);
+                            .data('description', res.task.description)
+                            .data('description2', res.task.description2 || '');
 
                         $taskItem.find('.complete-btn, .delete-btn')
                             .data('id', res.task.id);
@@ -627,6 +644,9 @@
                         } else {
                             $('#taskDescription').val('');
                         }
+
+                        // Clear second description field (normal textarea)
+                        $('#taskDescription2').val('');
 
                         addModal.hide();
 
@@ -779,6 +799,7 @@
                 const id = $(this).data('id');
                 const name = $(this).data('name');
                 const description = $(this).data('description');
+                const description2 = $(this).data('description2') || '';
 
                 // Check if task is completed by looking at the parent task item
                 const taskItem = $(`#task-${id}`);
@@ -794,8 +815,17 @@
                         '<p class="text-muted"><em>No description available</em></p>');
                 }
 
+                // Handle second description field
+                if (description2 && description2.trim() !== '') {
+                    $('#viewTaskDescription2').text(description2);
+                } else {
+                    $('#viewTaskDescription2').html(
+                        '<p class="text-muted"><em>No additional description</em></p>');
+                }
+
                 // Store task data for edit functionality
-                $('#viewEditBtn').data('id', id).data('name', name).data('description', description);
+                $('#viewEditBtn').data('id', id).data('name', name).data('description', description).data(
+                    'description2', description2);
 
                 // Hide/show edit button based on completion status
                 if (isCompleted) {
@@ -859,7 +889,7 @@
                     });
                     $img.attr('src', 'data:image/svg+xml;base64,' + btoa(
                         '<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100" viewBox="0 0 100 100"><rect width="100" height="100" fill="#f8f9fa" stroke="#dee2e6" stroke-dasharray="5,5"/><text x="50" y="50" text-anchor="middle" dy=".3em" fill="#6c757d" font-family="Arial, sans-serif" font-size="12">Image not found</text></svg>'
-                        ));
+                    ));
                 }
             });
 
@@ -868,8 +898,11 @@
                 // Switch to edit mode
                 $('#viewTaskName').addClass('d-none');
                 $('#viewTaskDescription').addClass('d-none');
+                $('#viewTaskDescription2').addClass('d-none');
                 $('#editViewTaskName').removeClass('d-none').val($(this).data('name'));
                 $('#editViewTaskDescription').removeClass('d-none');
+                $('#editViewTaskDescription2').removeClass('d-none').val($(this).data('description2') ||
+                '');
 
                 // Initialize TinyMCE for this specific textarea with error handling
                 if (typeof tinymce !== 'undefined') {
@@ -944,7 +977,7 @@
                                                 if (!response.ok) {
                                                     throw new Error(
                                                         `HTTP error! status: ${response.status}`
-                                                        );
+                                                    );
                                                 }
                                                 return response.json();
                                             })
@@ -1016,8 +1049,10 @@
                 // Switch back to view mode
                 $('#viewTaskName').removeClass('d-none');
                 $('#viewTaskDescription').removeClass('d-none');
+                $('#viewTaskDescription2').removeClass('d-none');
                 $('#editViewTaskName').addClass('d-none');
                 $('#editViewTaskDescription').addClass('d-none');
+                $('#editViewTaskDescription2').addClass('d-none');
 
                 // Show/hide buttons
                 $('#viewEditBtn').removeClass('d-none');
@@ -1042,10 +1077,13 @@
                     description = $('#editViewTaskDescription').val().trim();
                 }
 
+                // Get second description from textarea (no TinyMCE)
+                const description2 = $('#editViewTaskDescription2').val().trim();
+
                 if (!name || !description) {
                     Swal.fire({
                         icon: 'error',
-                        title: 'Please fill in all fields',
+                        title: 'Please fill in all required fields',
                         timer: 2000,
                         showConfirmButton: false
                     });
@@ -1055,7 +1093,8 @@
                 $.post(`tasks/${id}/edit`, {
                     _token: token,
                     name,
-                    description
+                    description,
+                    description2
                 }, function(res) {
                     if (res.success) {
                         Swal.fire({
@@ -1069,12 +1108,19 @@
                         const taskItem = $(`#task-${id}`);
                         taskItem.find('.task-text').text(name);
                         taskItem.find('.view-btn').data('name', name).data('description',
-                            description);
+                            description).data('description2', description2);
 
                         // Update the view modal display
                         $('#viewTaskName').text(name);
                         $('#viewTaskDescription').html(description);
-                        $('#viewEditBtn').data('name', name).data('description', description);
+                        if (description2 && description2.trim() !== '') {
+                            $('#viewTaskDescription2').text(description2);
+                        } else {
+                            $('#viewTaskDescription2').html(
+                                '<p class="text-muted"><em>No additional description</em></p>');
+                        }
+                        $('#viewEditBtn').data('name', name).data('description', description).data(
+                            'description2', description2);
 
                         // Destroy TinyMCE instance if it exists
                         if (tinymce.get('editViewTaskDescription')) {
@@ -1084,8 +1130,10 @@
                         // Switch back to view mode
                         $('#viewTaskName').removeClass('d-none');
                         $('#viewTaskDescription').removeClass('d-none');
+                        $('#viewTaskDescription2').removeClass('d-none');
                         $('#editViewTaskName').addClass('d-none');
                         $('#editViewTaskDescription').addClass('d-none');
+                        $('#editViewTaskDescription2').addClass('d-none');
 
                         // Show/hide buttons
                         $('#viewEditBtn').removeClass('d-none');
@@ -1121,6 +1169,8 @@
                         const taskItem = $(`#task-${id}`);
                         const name = res.name; // Get name from server response
                         const description = res.description; // Get description from server response
+                        const description2 = res.description2 ||
+                        ''; // Get second description from server response
 
                         if (res.completed) {
                             // Create completed task structure
@@ -1152,7 +1202,8 @@
                             $completedTask.find('.view-btn')
                                 .data('id', id)
                                 .data('name', name)
-                                .data('description', description);
+                                .data('description', description)
+                                .data('description2', description2);
 
                             $completedTask.find('.complete-btn, .delete-btn')
                                 .data('id', id);
@@ -1195,7 +1246,8 @@
                             $pendingTask.find('.view-btn')
                                 .data('id', id)
                                 .data('name', name)
-                                .data('description', description);
+                                .data('description', description)
+                                .data('description2', description2);
 
                             $pendingTask.find('.complete-btn, .delete-btn')
                                 .data('id', id);
@@ -1268,6 +1320,9 @@
                 } else {
                     $('#taskDescription').val('');
                 }
+
+                // Clear second description field (normal textarea)
+                $('#taskDescription2').val('');
             });
 
             $('#editTaskModal').on('hidden.bs.modal', function() {
