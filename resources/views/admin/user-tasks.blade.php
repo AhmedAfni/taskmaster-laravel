@@ -48,13 +48,11 @@
                                 <!-- Complete / Undo -->
                                 <form
                                     action="{{ $task->completed ? route('admin.tasks.undo', $task->id) : route('admin.tasks.complete', $task->id) }}"
-                                    method="POST" class="d-inline complete-undo-form">
+                                    method="POST" class="d-inline">
                                     @csrf
-                                    <button type="button"
-                                        class="btn btn-outline-{{ $task->completed ? 'warning' : 'success' }} btn-sm complete-undo-btn"
-                                        title="{{ $task->completed ? 'Mark as Incomplete' : 'Mark as Complete' }}"
-                                        data-task-id="{{ $task->id }}"
-                                        data-action="{{ $task->completed ? 'undo' : 'complete' }}">
+                                    <button type="submit"
+                                        class="btn btn-outline-{{ $task->completed ? 'warning' : 'success' }} btn-sm"
+                                        title="{{ $task->completed ? 'Mark as Incomplete' : 'Mark as Complete' }}">
                                         <i class="bi bi-check-circle{{ $task->completed ? '-fill' : '' }}"></i>
                                     </button>
                                 </form>
@@ -66,8 +64,8 @@
                                 </button>
 
                                 <!-- Delete -->
-                                <form action="{{ route('admin.tasks.delete', $task->id) }}" method="POST"
-                                    class="d-inline delete-task-form">
+                                <form action="{{ route('admin.tasks.delete', $task->id) }}" method="POST" class="d-inline"
+                                    onsubmit="return confirm('Are you sure you want to delete this task? This action cannot be undone.')">
                                     @csrf
                                     <button type="submit" class="btn btn-outline-danger btn-sm" title="Delete Task">
                                         <i class="bi bi-trash"></i>
@@ -121,8 +119,7 @@
                                 <div class="modal fade" id="editTaskModal{{ $task->id }}" tabindex="-1"
                                     aria-labelledby="editTaskLabel{{ $task->id }}" aria-hidden="true">
                                     <div class="modal-dialog modal-xl">
-                                        <form method="POST" action="{{ route('admin.tasks.edit', $task->id) }}"
-                                            novalidate>
+                                        <form method="POST" action="{{ route('admin.tasks.edit', $task->id) }}">
                                             @csrf
                                             <div class="modal-content">
                                                 <div class="modal-header">
@@ -136,12 +133,12 @@
                                                     <div class="mb-3">
                                                         <label class="form-label fw-semibold">Task Title</label>
                                                         <input type="text" name="name" class="form-control"
-                                                            value="{{ $task->name }}">
+                                                            value="{{ $task->name }}" required>
                                                     </div>
                                                     <div class="mb-3">
                                                         <label class="form-label fw-semibold">Description</label>
                                                         <textarea name="description" id="editTaskDescription{{ $task->id }}" class="form-control tinymce-editor"
-                                                            rows="4" placeholder="Enter task description...">{{ $task->description }}</textarea>
+                                                            rows="4" placeholder="Enter task description..." required>{{ $task->description }}</textarea>
                                                     </div>
                                                     <div class="mb-3">
                                                         <label class="form-label fw-semibold">Additional
@@ -335,6 +332,7 @@
 
     <script>
         $(document).ready(function() {
+            // Initialize DataTable
             $('#tasksTable').DataTable({
                 pageLength: 10,
                 ordering: true,
@@ -347,7 +345,9 @@
                     info: "Showing _START_ to _END_ of _TOTAL_ tasks",
                     emptyTable: "No tasks found"
                 }
-            }); // Initialize TinyMCE for first description fields in edit modals
+            });
+
+            // Initialize TinyMCE for first description fields in edit modals
             tinymce.init({
                 selector: 'textarea.tinymce-editor',
                 height: 300,
@@ -383,32 +383,6 @@
                     formData = new FormData();
                     formData.append('upload', blobInfo.blob(), blobInfo.filename());
                     xhr.send(formData);
-                },
-                setup: function(editor) {
-                    // Remove aria-hidden when editor is ready to prevent focus issues
-                    editor.on('init', function() {
-                        const element = editor.getElement();
-                        if (element) {
-                            element.removeAttribute('aria-hidden');
-                            element.setAttribute('tabindex', '-1');
-                            // Override browser validation to prevent focus issues
-                            element.setCustomValidity = function() {};
-                            console.log('TinyMCE editor initialized for:', element.id);
-                        }
-                    });
-
-                    // Handle focus events properly
-                    editor.on('focus', function() {
-                        const element = editor.getElement();
-                        if (element) {
-                            element.removeAttribute('aria-hidden');
-                        }
-                    });
-
-                    // Save content to textarea on change
-                    editor.on('change', function() {
-                        editor.save();
-                    });
                 }
             });
 
@@ -430,414 +404,6 @@
                     });
                 }
             });
-
-            // Prevent browser validation issues with TinyMCE hidden textareas
-            $(document).on('invalid', 'textarea.tinymce-editor', function(e) {
-                e.preventDefault();
-                e.stopPropagation();
-
-                const textarea = this;
-                const editor = tinymce.get(textarea.id);
-
-                if (editor) {
-                    // Focus the TinyMCE editor instead
-                    editor.focus();
-
-                    // Show validation message
-                    Swal.fire({
-                        icon: 'warning',
-                        title: 'Validation Error',
-                        text: 'Please fill in the description field',
-                        confirmButtonColor: '#ffc107'
-                    });
-                }
-
-                return false;
-            });
-
-            // Handle complete/undo button clicks directly
-            $(document).on('click', '.complete-undo-btn', function(e) {
-                e.preventDefault();
-                e.stopPropagation();
-
-                const btn = $(this);
-                const form = btn.closest('.complete-undo-form');
-                const taskId = btn.data('task-id');
-                const action = btn.data('action');
-                const taskRow = btn.closest('tr');
-
-                console.log(`Button clicked: Task ${taskId}, Action: ${action}`);
-
-                // Show loading state
-                btn.prop('disabled', true);
-                const originalHtml = btn.html();
-                btn.html('<i class="bi bi-spinner spinner-border spinner-border-sm"></i>');
-
-                // Get CSRF token
-                const csrfToken = form.find('input[name="_token"]').val();
-
-                // Determine URL
-                const url = action === 'complete' ?
-                    `{{ url('admin/tasks') }}/${taskId}/complete` :
-                    `{{ url('admin/tasks') }}/${taskId}/undo`;
-
-                console.log(`Making AJAX request to: ${url}`);
-
-                $.ajax({
-                    url: url,
-                    method: 'POST',
-                    data: {
-                        _token: csrfToken
-                    },
-                    headers: {
-                        'X-Requested-With': 'XMLHttpRequest',
-                        'Accept': 'application/json'
-                    },
-                    success: function(response) {
-                        console.log('AJAX Success:', response);
-
-                        const actionText = action === 'complete' ? 'completed' :
-                            'marked as pending';
-
-                        Swal.fire({
-                            icon: 'success',
-                            title: 'Success!',
-                            text: `Task ${actionText} successfully`,
-                            confirmButtonColor: '#198754',
-                            timer: 2000,
-                            showConfirmButton: false
-                        });
-
-                        // Update the task row
-                        updateTaskRowAfterCompletion(taskRow, response.task || {}, action ===
-                            'complete');
-                    },
-                    error: function(xhr, status, error) {
-                        console.error('AJAX Error:', xhr, status, error);
-                        console.error('Response Text:', xhr.responseText);
-
-                        let errorMessage = 'An error occurred';
-                        if (xhr.responseJSON && xhr.responseJSON.message) {
-                            errorMessage = xhr.responseJSON.message;
-                        } else if (xhr.status === 419) {
-                            errorMessage = 'Session expired. Please refresh the page.';
-                        } else if (xhr.status === 500) {
-                            errorMessage = 'Server error occurred. Please try again.';
-                        }
-
-                        Swal.fire({
-                            icon: 'error',
-                            title: 'Error!',
-                            text: errorMessage,
-                            confirmButtonColor: '#dc3545'
-                        });
-                    },
-                    complete: function() {
-                        // Restore button
-                        btn.prop('disabled', false).html(originalHtml);
-                    }
-                });
-
-                return false;
-            });
-
-            // Handle edit form submission with AJAX - more specific selector
-            $(document).on('submit', 'form[action*="/admin/tasks/"][action*="/edit"]', function(e) {
-                e.preventDefault();
-                e.stopPropagation();
-
-                console.log('Edit form submitted - event captured');
-                console.log('Form element:', this);
-                console.log('Form action:', $(this).attr('action'));
-                console.log('Form method:', $(this).attr('method'));
-
-                handleEditFormSubmission($(this));
-
-                return false;
-            });
-
-            // Alternative: Also handle by button click inside edit modal
-            $(document).on('click', 'button[type="submit"]', function(e) {
-                const form = $(this).closest('form');
-                const action = form.attr('action');
-
-                // Only handle admin task edit forms
-                if (action && action.includes('/admin/tasks/') && action.includes('/edit')) {
-                    e.preventDefault();
-                    e.stopPropagation();
-
-                    console.log('Edit button clicked - handling form submission');
-                    handleEditFormSubmission(form);
-
-                    return false;
-                }
-            });
-
-            // Handle delete form submission with AJAX
-            $(document).on('submit', '.delete-task-form', function(e) {
-                e.preventDefault();
-                e.stopPropagation();
-
-                console.log('Delete form submitted');
-                const form = $(this);
-                const taskRow = form.closest('tr');
-
-                Swal.fire({
-                    title: 'Delete Task?',
-                    text: "This action cannot be undone!",
-                    icon: 'warning',
-                    showCancelButton: true,
-                    confirmButtonColor: '#dc3545',
-                    cancelButtonColor: '#6c757d',
-                    confirmButtonText: 'Yes, delete it!',
-                    cancelButtonText: 'Cancel',
-                    reverseButtons: true
-                }).then((result) => {
-                    if (result.isConfirmed) {
-                        // AJAX deletion
-                        $.ajax({
-                            url: form.attr('action'),
-                            method: 'POST',
-                            data: form.serialize(),
-                            headers: {
-                                'X-Requested-With': 'XMLHttpRequest',
-                                'Accept': 'application/json'
-                            },
-                            success: function(response) {
-                                Swal.fire({
-                                    icon: 'success',
-                                    title: 'Deleted!',
-                                    text: 'Task has been deleted successfully',
-                                    confirmButtonColor: '#198754',
-                                    timer: 2000,
-                                    showConfirmButton: false
-                                });
-
-                                // Remove row from table
-                                if ($.fn.DataTable.isDataTable('#tasksTable')) {
-                                    $('#tasksTable').DataTable().row(taskRow).remove()
-                                        .draw();
-                                } else {
-                                    taskRow.fadeOut(300, function() {
-                                        $(this).remove();
-                                    });
-                                }
-                            },
-                            error: function(xhr) {
-                                let errorMessage = 'Failed to delete task';
-                                if (xhr.responseJSON && xhr.responseJSON.message) {
-                                    errorMessage = xhr.responseJSON.message;
-                                }
-
-                                Swal.fire({
-                                    icon: 'error',
-                                    title: 'Error!',
-                                    text: errorMessage,
-                                    confirmButtonColor: '#dc3545'
-                                });
-                            }
-                        });
-                    }
-                });
-
-                return false;
-            });
-
-            // Function to handle edit form submission with AJAX
-            function handleEditFormSubmission(form) {
-                console.log('Starting edit form submission...', form);
-
-                // Save TinyMCE editors content first
-                if (typeof tinymce !== 'undefined') {
-                    tinymce.triggerSave();
-                    form.find('textarea.tinymce-editor').each(function() {
-                        const editor = tinymce.get(this.id);
-                        if (editor) {
-                            editor.save();
-                            console.log('Saved TinyMCE editor:', this.id);
-                        }
-                    });
-                }
-
-                // Save all CKEditor5 editors before form submission
-                $("textarea.ckeditor-editor").each(function() {
-                    if (this._ckeditorInstance) {
-                        this.value = this._ckeditorInstance.getData();
-                    }
-                });
-
-                // Get form data
-                const taskName = form.find('input[name="name"]').val().trim();
-
-                // Get description - simplified
-                let taskDescription = '';
-                const descriptionTextarea = form.find('textarea[name="description"]')[0];
-                if (descriptionTextarea) {
-                    const editor = tinymce.get(descriptionTextarea.id);
-                    if (editor) {
-                        taskDescription = editor.getContent();
-                    } else {
-                        taskDescription = $(descriptionTextarea).val();
-                    }
-                    taskDescription = taskDescription ? taskDescription.trim() : '';
-                }
-
-                console.log('Data:', {
-                    taskName,
-                    descriptionLength: taskDescription.length
-                });
-
-                // Simple validation
-                if (!taskName) {
-                    Swal.fire({
-                        icon: 'error',
-                        title: 'Validation Error',
-                        text: 'Task name is required',
-                        confirmButtonColor: '#dc3545'
-                    });
-                    return;
-                }
-
-                if (!taskDescription) {
-                    Swal.fire({
-                        icon: 'error',
-                        title: 'Validation Error',
-                        text: 'Task description is required',
-                        confirmButtonColor: '#dc3545'
-                    });
-                    return;
-                }
-
-                console.log('Validation passed - proceeding with submission');
-
-                const formData = new FormData(form[0]);
-                const submitBtn = form.find('button[type="submit"]');
-                const originalText = submitBtn.html();
-                const modal = form.closest('.modal');
-                const url = form.attr('action');
-
-                console.log('Form action URL:', url);
-
-                // Ensure CSRF token is present
-                if (!formData.has('_token')) {
-                    const csrfToken = document.querySelector('meta[name="csrf-token"]');
-                    if (csrfToken) {
-                        formData.append('_token', csrfToken.getAttribute('content'));
-                    }
-                }
-
-                // Show loading state
-                submitBtn.prop('disabled', true).html(
-                    '<i class="bi bi-spinner spinner-border spinner-border-sm me-1"></i> Updating...'
-                );
-
-                $.ajax({
-                        url: url,
-                        method: 'POST',
-                        data: formData,
-                        processData: false,
-                        contentType: false,
-                        headers: {
-                            'X-Requested-With': 'XMLHttpRequest',
-                            'Accept': 'application/json'
-                        }
-                    })
-                    .done(function(response) {
-                        console.log('Edit success response:', response);
-
-                        Swal.fire({
-                            icon: 'success',
-                            title: 'Success!',
-                            text: 'Task updated successfully',
-                            confirmButtonColor: '#198754',
-                            timer: 2000,
-                            showConfirmButton: false
-                        });
-
-                        // Close modal
-                        modal.modal('hide');
-
-                        // Reload the page to show updated data
-                        setTimeout(() => {
-                            location.reload();
-                        }, 1000);
-                    })
-                    .fail(function(xhr) {
-                        console.error('Edit error:', xhr);
-
-                        let errorMessage = 'An error occurred';
-                        if (xhr.responseJSON && xhr.responseJSON.message) {
-                            errorMessage = xhr.responseJSON.message;
-                        } else if (xhr.responseJSON && xhr.responseJSON.errors) {
-                            const errors = Object.values(xhr.responseJSON.errors).flat();
-                            errorMessage = errors.join(', ');
-                        } else if (xhr.status === 419) {
-                            errorMessage = 'Session expired. Please refresh the page.';
-                        } else if (xhr.status === 422) {
-                            errorMessage = 'Validation failed. Please check your input.';
-                        } else if (xhr.status === 500) {
-                            errorMessage = 'Server error occurred. Please try again.';
-                        }
-
-                        Swal.fire({
-                            icon: 'error',
-                            title: 'Error!',
-                            text: errorMessage,
-                            confirmButtonColor: '#dc3545'
-                        });
-                    })
-                    .always(function() {
-                        // Restore button
-                        submitBtn.prop('disabled', false).html(originalText);
-                    });
-            }
-
-            // Function to update task row after completion/undo
-            function updateTaskRowAfterCompletion(taskRow, task, isCompleting) {
-                const statusCell = taskRow.find('td:nth-child(3)');
-                const completedCell = taskRow.find('td:nth-child(5)');
-                const actionButtons = taskRow.find('td:nth-child(6)');
-
-                // Update status badge
-                if (isCompleting) {
-                    statusCell.html('<span class="badge bg-success">Completed</span>');
-                } else {
-                    statusCell.html('<span class="badge bg-warning text-dark">Pending</span>');
-                }
-
-                // Update completed date
-                if (isCompleting && task.completed_at) {
-                    const date = new Date(task.completed_at);
-                    const formattedDate = date.toLocaleDateString('en-US', {
-                        day: '2-digit',
-                        month: 'short',
-                        year: 'numeric',
-                        hour: '2-digit',
-                        minute: '2-digit',
-                        hour12: true
-                    });
-                    completedCell.html(formattedDate);
-                } else {
-                    completedCell.html('<span class="text-muted">-</span>');
-                }
-
-                // Update complete/undo button
-                const completeBtn = actionButtons.find('.complete-undo-btn');
-
-                if (isCompleting) {
-                    // Update button styling and text - use warning color for completed tasks (undo button)
-                    completeBtn.removeClass('btn-outline-success').addClass('btn-outline-warning');
-                    completeBtn.attr('title', 'Mark as Incomplete');
-                    completeBtn.attr('data-action', 'undo');
-                    completeBtn.find('i').removeClass('bi-check-circle').addClass('bi-check-circle-fill');
-                } else {
-                    // Update button styling and text - use success color for pending tasks (complete button)
-                    completeBtn.removeClass('btn-outline-warning').addClass('btn-outline-success');
-                    completeBtn.attr('title', 'Mark as Complete');
-                    completeBtn.attr('data-action', 'complete');
-                    completeBtn.find('i').removeClass('bi-check-circle-fill').addClass('bi-check-circle');
-                }
-            }
 
             // Image zoom functionality for view modals
             $(document).on('click', '.modal-body .bg-light img', function(e) {
