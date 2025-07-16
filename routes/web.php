@@ -17,6 +17,12 @@ Route::get('/', fn () => redirect()->route('register'));
 Auth::routes();
 Route::get('/home', [App\Http\Controllers\HomeController::class, 'index'])->name('home');
 
+// User logout safety route - handle GET requests gracefully
+Route::get('/logout', function() {
+    return redirect()->route('login')
+                   ->with('status', 'Please use the logout button to sign out.');
+})->name('user.logout.get');
+
 // --------------------
 // Task Routes (User Side)
 // --------------------
@@ -55,7 +61,12 @@ Route::prefix('admin')->group(function () {
         Route::post('users', [AdminUserController::class, 'store'])->name('admin.users.store');
         Route::delete('users/{id}', [AdminUserController::class, 'destroy'])->name('admin.users.delete');
 
+        // Admin logout routes - handle both GET and POST
         Route::post('logout', [AdminAuthController::class, 'logout'])->name('admin.logout');
+        Route::get('logout', function() {
+            return redirect()->route('admin.login.form')
+                           ->with('info', 'Please use the logout button to sign out.');
+        })->name('admin.logout.get');
 
         // Task management
         Route::post('tasks/assign', [AdminController::class, 'assignTaskToUser'])->name('admin.tasks.assign');

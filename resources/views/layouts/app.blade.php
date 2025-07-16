@@ -12,6 +12,9 @@
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet" />
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 
+    <!-- Bootstrap Icons CDN -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css">
+
     <!-- SweetAlert2 CDN -->
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 
@@ -75,7 +78,12 @@
                                     </a>
 
                                     <div class="dropdown-menu dropdown-menu-end" aria-labelledby="navbarDropdown">
-                                        <a class="dropdown-item" href="#" id="logout-link">Logout</a>
+                                        {{-- User Logout Link with Icon --}}
+                                        <a class="dropdown-item" href="#" id="logout-link" title="Logout">
+                                            <i class="bi bi-box-arrow-right me-2"></i>Logout
+                                        </a>
+
+                                        {{-- Hidden User Logout Form --}}
                                         <form id="logout-form" action="{{ route('logout') }}" method="POST" class="d-none">
                                             @csrf
                                         </form>
@@ -131,23 +139,43 @@
                 });
             @endif
 
-            // Logout with confirmation
+            // User Logout with Enhanced Confirmation
             const logoutLink = document.getElementById('logout-link');
             const logoutForm = document.getElementById('logout-form');
 
             if (logoutLink && logoutForm) {
                 logoutLink.addEventListener('click', function(e) {
                     e.preventDefault();
+
                     Swal.fire({
-                        title: 'Are you sure?',
-                        text: 'You will be logged out.',
-                        icon: 'warning',
+                        title: 'Logout Confirmation',
+                        text: "Are you sure you want to logout?",
+                        icon: 'question',
                         showCancelButton: true,
-                        confirmButtonColor: '#3085d6',
-                        cancelButtonColor: '#d33',
-                        confirmButtonText: 'Yes, logout'
+                        confirmButtonColor: '#dc3545',
+                        cancelButtonColor: '#6c757d',
+                        confirmButtonText: '<i class="bi bi-box-arrow-right me-1"></i>Yes, Logout',
+                        cancelButtonText: '<i class="bi bi-x-circle me-1"></i>Cancel',
+                        reverseButtons: true,
+                        customClass: {
+                            confirmButton: 'btn btn-danger',
+                            cancelButton: 'btn btn-secondary'
+                        }
                     }).then((result) => {
                         if (result.isConfirmed) {
+                            // Show loading state
+                            Swal.fire({
+                                title: 'Logging out...',
+                                text: 'Please wait while we log you out.',
+                                icon: 'info',
+                                allowOutsideClick: false,
+                                showConfirmButton: false,
+                                didOpen: () => {
+                                    Swal.showLoading();
+                                }
+                            });
+
+                            // Submit the logout form
                             logoutForm.submit();
                         }
                     });

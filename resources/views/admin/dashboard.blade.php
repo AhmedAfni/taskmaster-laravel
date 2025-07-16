@@ -1,11 +1,17 @@
+{{--
+    Admin Dashboard - Main administrative interface for TaskMaster
+    Features: User management, task assignment, task monitoring, statistics
+--}}
 @extends('admin.layout')
 
 @section('content')
+    {{-- Welcome Header Section --}}
     <div class="mb-5">
         <h2 class="fw-semibold mb-1">👋 Welcome, {{ Auth::guard('admin')->user()->name }}</h2>
         <p class="text-muted small">Here's a quick snapshot of the platform.</p>
     </div>
 
+    {{-- User Management Section Header --}}
     <div class="d-flex justify-content-between align-items-center mb-4">
         <h4 class="fw-semibold mb-0">Manage Users</h4>
         <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addUserModal">
@@ -13,7 +19,9 @@
         </button>
     </div>
 
+    {{-- Statistics Cards Row --}}
     <div class="row g-4 mb-5">
+        {{-- Total Users Card --}}
         <div class="col-md-4">
             <a href="{{ route('admin.users') }}" class="text-decoration-none">
                 <div class="card border-0 shadow-sm h-100 hover-scale bg-light">
@@ -25,6 +33,7 @@
                 </div>
             </a>
         </div>
+        {{-- Total Admins Card --}}
         <div class="col-md-4">
             <div class="card border-0 shadow-sm h-100 hover-scale bg-light">
                 <div class="card-body">
@@ -34,6 +43,7 @@
                 </div>
             </div>
         </div>
+        {{-- Current Date/Time Card --}}
         <div class="col-md-4">
             <div class="card border-0 shadow-sm h-100 hover-scale bg-light">
                 <div class="card-body">
@@ -45,14 +55,16 @@
         </div>
     </div>
 
-    <!-- Assign Task -->
+    {{-- Task Assignment Section --}}
     <div class="mb-5">
         <h4 class="fw-semibold mb-3">Assign a New Task</h4>
         <div class="card shadow-sm border-0">
             <div class="card-body">
+                {{-- Task Assignment Form with TinyMCE and CKEditor5 integration --}}
                 <form method="POST" action="{{ route('admin.tasks.assign') }}">
                     @csrf
                     <div class="row g-3">
+                        {{-- User Selection Dropdown --}}
                         <div class="col-md-6">
                             <label for="user_id" class="form-label small fw-semibold">Select User</label>
                             <select name="user_id" id="user_id" class="form-select" required>
@@ -63,22 +75,26 @@
                                 @endforeach
                             </select>
                         </div>
+                        {{-- Task Title Input --}}
                         <div class="col-md-6">
                             <label for="task_name" class="form-label small fw-semibold">Task Title</label>
                             <input type="text" name="task_name" id="task_name" class="form-control"
                                 placeholder="e.g. Prepare Report" required>
                         </div>
+                        {{-- Main Description (TinyMCE Rich Text Editor) --}}
                         <div class="col-12">
                             <label for="task_description" class="form-label small fw-semibold">Description</label>
                             <textarea name="task_description" id="task_description" class="form-control" rows="4"
                                 placeholder="Task details..." required></textarea>
                         </div>
+                        {{-- Additional Description (CKEditor5 Rich Text Editor) --}}
                         <div class="col-12">
                             <label for="task_description2" class="form-label small fw-semibold">Additional
                                 Description</label>
                             <textarea name="task_description2" id="task_description2" class="form-control" rows="3"
                                 placeholder="Additional task details (optional)..."></textarea>
                         </div>
+                        {{-- Submit Button --}}
                         <div class="col-12 text-end">
                             <button type="submit" class="btn btn-dark">
                                 <i class="bi bi-send me-1"></i> Assign Task
@@ -90,10 +106,11 @@
         </div>
     </div>
 
-    <!-- All Tasks -->
+    {{-- All Tasks Management Section --}}
     <div>
         <h4 class="fw-semibold mb-3">All User Tasks</h4>
         <div class="table-responsive">
+            {{-- DataTable for task management with AJAX actions --}}
             <table id="userTasksTable" class="table table-hover align-middle border table-sm">
                 <thead class="table-light">
                     <tr>
@@ -109,10 +126,10 @@
                 <tbody>
                     @forelse ($tasks as $task)
                         <tr>
-                            <!-- Index for DataTable -->
+                            {{-- Auto-numbered index column --}}
                             <td class="text-muted"></td>
 
-                            <!-- Task Name -->
+                            {{-- Task Name with truncation --}}
                             <td>
                                 <div class="d-flex align-items-center">
                                     <span class="{{ $task->completed ? 'text-muted text-decoration-line-through' : '' }}"
@@ -122,7 +139,7 @@
                                 </div>
                             </td>
 
-                            <!-- Task Status -->
+                            {{-- Task Status Badge --}}
                             <td>
                                 @if ($task->completed)
                                     <span class="badge bg-success">
@@ -135,7 +152,7 @@
                                 @endif
                             </td>
 
-                            <!-- Assigned User -->
+                            {{-- Assigned User Information --}}
                             <td>
                                 @if ($task->user)
                                     {{ $task->user->name }}
@@ -146,12 +163,12 @@
                                 @endif
                             </td>
 
-                            <!-- Created At -->
+                            {{-- Task Creation Date --}}
                             <td>
                                 <small>{{ $task->created_at->format('d M Y, h:i A') }}</small>
                             </td>
 
-                            <!-- Completed At -->
+                            {{-- Task Completion Date --}}
                             <td>
                                 @if ($task->completed && $task->completed_at)
                                     <small
@@ -161,17 +178,17 @@
                                 @endif
                             </td>
 
-                            <!-- Actions -->
+                            {{-- Action Buttons (View, Complete/Undo, Edit, Delete) --}}
                             <td>
                                 <div class="d-flex gap-1">
-                                    <!-- View -->
+                                    {{-- View Task Details Button --}}
                                     <button type="button" class="btn btn-sm btn-outline-info" data-bs-toggle="modal"
                                         data-bs-target="#viewTaskModal" data-task-id="{{ $task->id }}"
                                         title="View Details">
                                         <i class="bi bi-eye"></i>
                                     </button>
 
-                                    <!-- Complete / Undo -->
+                                    {{-- Complete/Undo Task Button (AJAX) --}}
                                     <form method="POST"
                                         action="{{ $task->completed ? route('admin.tasks.undo', $task) : route('admin.tasks.complete', $task) }}"
                                         class="d-inline">
@@ -184,13 +201,13 @@
                                         </button>
                                     </form>
 
-                                    <!-- Edit -->
+                                    {{-- Edit Task Button --}}
                                     <button type="button" class="btn btn-sm btn-outline-primary" data-bs-toggle="modal"
                                         data-bs-target="#editTaskModal" data-task-id="{{ $task->id }}">
                                         <i class="bi bi-pencil-square"></i>
                                     </button>
 
-                                    <!-- Delete -->
+                                    {{-- Delete Task Button (AJAX with confirmation) --}}
                                     <form method="POST" action="{{ route('admin.tasks.delete', $task) }}"
                                         class="delete-task-form d-inline">
                                         @csrf
@@ -212,7 +229,7 @@
         </div>
     </div>
 
-    <!-- View Task Modal -->
+    {{-- Modal: View Task Details --}}
     <div class="modal fade" id="viewTaskModal" tabindex="-1" aria-labelledby="viewTaskModalLabel" aria-hidden="true">
         <div class="modal-dialog modal-xl">
             <div class="modal-content">
@@ -221,16 +238,19 @@
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
                 <div class="modal-body">
+                    {{-- Task Title Display --}}
                     <div class="mb-3">
                         <label class="form-label fw-bold">Task Title</label>
                         <div class="border rounded p-3 bg-light" id="viewTaskName" style="line-height: 1.5;"></div>
                     </div>
+                    {{-- Main Description Display (TinyMCE content) --}}
                     <div class="mb-0">
                         <label class="form-label fw-bold">Description</label>
                         <div class="border rounded p-3 bg-light" id="viewTaskDescription"
                             style="min-height: 100px; max-height: 500px; overflow-y: auto; white-space: normal; line-height: 1.5; word-wrap: break-word;">
                         </div>
                     </div>
+                    {{-- Additional Description Display (CKEditor5 content) --}}
                     <div class="mb-0">
                         <label class="form-label fw-bold">Additional Description</label>
                         <div class="border rounded p-3 bg-light" id="viewTaskDescription2"
@@ -247,7 +267,7 @@
         </div>
     </div>
 
-    <!-- Edit Task Modal -->
+    {{-- Modal: Edit Task --}}
     <div class="modal fade" id="editTaskModal" tabindex="-1" aria-labelledby="editTaskModalLabel" aria-hidden="true">
         <div class="modal-dialog modal-xl">
             <form method="POST" id="editTaskForm">
@@ -258,15 +278,18 @@
                         <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                     </div>
                     <div class="modal-body">
+                        {{-- Edit Task Title --}}
                         <div class="mb-3">
                             <label for="editTaskName" class="form-label">Task Title</label>
                             <input type="text" name="name" id="editTaskName" class="form-control" required>
                         </div>
+                        {{-- Edit Main Description (TinyMCE) --}}
                         <div class="mb-3">
                             <label for="editTaskDescription" class="form-label">Description</label>
                             <textarea name="description" id="editTaskDescription" class="form-control" rows="4"
                                 placeholder="Enter task description..." required></textarea>
                         </div>
+                        {{-- Edit Additional Description (CKEditor5) --}}
                         <div class="mb-3">
                             <label for="editTaskDescription2" class="form-label">Additional Description</label>
                             <textarea name="description2" id="editTaskDescription2" class="form-control" rows="3"
@@ -286,7 +309,7 @@
         </div>
     </div>
 
-    <!-- Add User Modal -->
+    {{-- Modal: Add New User --}}
     <div class="modal fade" id="addUserModal" tabindex="-1" aria-labelledby="addUserModalLabel" aria-hidden="true">
         <div class="modal-dialog">
             <form method="POST" action="{{ route('admin.users.store') }}" id="addUserForm">
@@ -297,14 +320,17 @@
                         <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                     </div>
                     <div class="modal-body">
+                        {{-- User Name Input --}}
                         <div class="mb-3">
                             <label for="userName" class="form-label">Name</label>
                             <input type="text" class="form-control" name="name" id="userName" required>
                         </div>
+                        {{-- User Email Input --}}
                         <div class="mb-3">
                             <label for="userEmail" class="form-label">Email</label>
                             <input type="email" class="form-control" name="email" id="userEmail" required>
                         </div>
+                        {{-- User Password Input --}}
                         <div class="mb-3">
                             <label for="userPassword" class="form-label">Password</label>
                             <input type="password" class="form-control" name="password" id="userPassword" required>
@@ -319,25 +345,28 @@
         </div>
     </div>
 
-    <!-- Image Zoom Modal -->
+    {{-- Modal: Image Zoom (for rich text content images) --}}
     <div class="image-zoom-modal" id="imageZoomModal">
         <img src="" alt="Zoomed Image" id="zoomedImage">
     </div>
 @endsection
 
+{{-- CSS Styles for Admin Dashboard --}}
 @push('styles')
+    {{-- External CSS Libraries --}}
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css" rel="stylesheet" />
     <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
     <link href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.datatables.net/1.13.6/css/dataTables.bootstrap5.min.css" />
 
-
     <style>
+        /* Hover effect for statistic cards */
         .hover-scale:hover {
             transform: scale(1.02);
             transition: 0.2s ease-in-out;
         }
 
+        /* Select2 dropdown styling */
         .select2-container--default .select2-selection--single {
             height: 38px;
             padding: 6px 12px;
@@ -368,16 +397,17 @@
             display: none;
         }
 
-        /* Table row fade effect */
+        /* Table row fade effect for AJAX updates */
         .table tbody tr {
             transition: opacity 0.3s ease;
         }
 
-        /* Rich text content styling */
+        /* Rich text content styling in view modal */
         #viewTaskDescription {
             font-family: Arial, sans-serif;
         }
 
+        /* Styling for rich text elements */
         #viewTaskDescription h1,
         #viewTaskDescription h2,
         #viewTaskDescription h3 {
@@ -403,6 +433,7 @@
             font-style: italic;
         }
 
+        /* Image styling in rich text content */
         #viewTaskDescription img {
             max-width: 100%;
             height: auto;
@@ -502,7 +533,7 @@
             font-size: 0.7rem;
         }
 
-        /* Table action buttons */
+        /* Table action buttons styling */
         .d-flex.gap-1 .btn {
             border-radius: 0.375rem;
         }
@@ -514,26 +545,32 @@
     </style>
 @endpush
 
+{{-- JavaScript Libraries and Custom Scripts --}}
 @push('scripts')
+    {{-- External JavaScript Libraries --}}
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/jquery-validation@1.19.5/dist/jquery.validate.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-    <!-- DataTables Scripts -->
+    {{-- DataTables Scripts --}}
     <script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
     <script src="https://cdn.datatables.net/1.13.6/js/dataTables.bootstrap5.min.js"></script>
-    <!-- TinyMCE -->
+    {{-- Rich Text Editors --}}
     <script src="https://cdn.tiny.cloud/1/96s1bjh0dbr79aoe5h20vpcele61qmaimpdu7rgotiln64xm/tinymce/6/tinymce.min.js"
         referrerpolicy="origin"></script>
-    <!-- CKEditor5 -->
+    {{-- CKEditor5 --}}
     <script src="https://cdn.ckeditor.com/ckeditor5/39.0.1/classic/ckeditor.js"></script>
 
     <script>
-        // Global variables for CKEditor instances
-        let assignTaskEditor2;
-        let editTaskEditor2 = null;
+        // Global variables for rich text editor instances
+        let assignTaskEditor2; // CKEditor5 instance for assign task additional description
+        let editTaskEditor2 = null; // CKEditor5 instance for edit task modal
 
-        // Function to format date
+        /**
+         * Format date for display in table
+         * @param {string} dateString - ISO date string
+         * @returns {string} Formatted date string
+         */
         function formatDate(dateString) {
             const date = new Date(dateString);
             return date.toLocaleDateString('en-US', {
@@ -546,7 +583,11 @@
             });
         }
 
-        // Function to fix image URLs in content
+        /**
+         * Fix image URLs in rich text content to use absolute paths
+         * @param {string} content - HTML content with potentially relative image URLs
+         * @returns {string} Content with fixed absolute image URLs
+         */
         function fixImageUrls(content) {
             if (!content) return content;
 
@@ -561,7 +602,12 @@
             return content;
         }
 
-        // Function to update task row after completion/undo
+        /**
+         * Update task row in DataTable after completion/undo action
+         * @param {jQuery} taskRow - The table row element
+         * @param {Object} task - Task object with updated data
+         * @param {boolean} isCompleting - Whether task is being completed (true) or undone (false)
+         */
         function updateTaskRowAfterCompletion(taskRow, task, isCompleting) {
             const nameCell = taskRow.find('td:nth-child(2)');
             const statusCell = taskRow.find('td:nth-child(3)');
@@ -592,7 +638,7 @@
                 completedCell.html('<span class="text-muted">-</span>');
             }
 
-            // Update action button
+            // Update action button form action and styling
             const completeForm = actionButtons.find('form[action*="/complete"], form[action*="/undo"]');
             const completeBtn = completeForm.find('button[type="submit"]');
 
@@ -602,7 +648,7 @@
                 const newAction = currentAction.replace('/complete', '/undo');
                 completeForm.attr('action', newAction);
 
-                // Update button styling and text
+                // Update button styling and icon
                 completeBtn.removeClass('btn-outline-success').addClass('btn-outline-success');
                 completeBtn.attr('title', 'Mark as Incomplete');
                 completeBtn.find('i').removeClass('bi-check2-circle').addClass('bi-arrow-counterclockwise');
@@ -612,25 +658,29 @@
                 const newAction = currentAction.replace('/undo', '/complete');
                 completeForm.attr('action', newAction);
 
-                // Update button styling and text
+                // Update button styling and icon
                 completeBtn.removeClass('btn-outline-success').addClass('btn-outline-success');
                 completeBtn.attr('title', 'Mark as Complete');
                 completeBtn.find('i').removeClass('bi-arrow-counterclockwise').addClass('bi-check2-circle');
             }
         }
 
-        // Function to add new task row to DataTable
+        /**
+         * Add new task row to DataTable after AJAX creation
+         * @param {Object} task - Task object with user data
+         */
         function addNewTaskToTable(task) {
             if ($.fn.DataTable.isDataTable('#userTasksTable')) {
                 const table = $('#userTasksTable').DataTable();
 
-                // Generate URLs properly
+                // Generate URLs properly for new task
                 const completeUrl = `{{ url('admin/tasks') }}/${task.id}/complete`;
                 const deleteUrl = `{{ url('admin/tasks') }}/${task.id}/delete`;
                 const csrfToken = `{{ csrf_token() }}`;
 
+                // Create new row data array
                 const newRow = [
-                    '', // Index will be auto-filled
+                    '', // Index will be auto-filled by DataTable
                     `<div class="d-flex align-items-center">
                         <span title="${task.name}">${task.name.length > 50 ? task.name.substring(0, 50) + '...' : task.name}</span>
                     </div>`,
@@ -665,21 +715,24 @@
                     </div>`
                 ];
 
+                // Add row to DataTable and redraw
                 table.row.add(newRow).draw();
             }
         }
 
+        // Document ready - Initialize all components
         $(document).ready(function() {
             const $table = $('#userTasksTable');
 
+            // Initialize DataTable if there are tasks to display
             if ($table.find('tbody tr').not(':has(td[colspan])').length > 0) {
 
                 let table = $table.DataTable({
-                    pageLength: 4,
+                    pageLength: 4, // Show 4 tasks per page
                     ordering: true,
                     order: [
-                        [4, 'desc']
-                    ], // Order by "Assigned" column (created_at)
+                        [4, 'desc'] // Order by "Assigned" column (created_at) descending
+                    ],
                     language: {
                         search: "Search tasks:",
                         lengthMenu: "Show _MENU_ tasks per page",
@@ -688,11 +741,11 @@
                     },
                     columnDefs: [{
                         orderable: false,
-                        targets: [0, 6] // '#' and Actions columns
+                        targets: [0, 6] // Disable sorting for '#' and Actions columns
                     }]
                 });
 
-                // Auto-fill row numbers in '#' column
+                // Auto-fill row numbers in '#' column after any table operation
                 table.on('order.dt search.dt draw.dt', function() {
                     table.column(0, {
                             search: 'applied',
