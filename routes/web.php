@@ -33,10 +33,10 @@ Route::middleware('auth')->group(function () {
 
     // API route for fetching individual task data (for modals)
     Route::get('/api/tasks/{task}', [TaskController::class, 'getTaskData'])->name('api.tasks.show');
-
-    // Fallback route for serving images if symbolic link fails
-    Route::get('/storage/task-images/{filename}', [TaskController::class, 'serveImage'])->name('serve.image');
 });
+
+// Public Image Serving Route (must be outside auth middleware)
+Route::get('/storage/task-images/{filename}', [TaskController::class, 'serveImage'])->name('serve.image');
 
 // --------------------
 // Admin Routes

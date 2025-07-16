@@ -569,6 +569,9 @@
                     content_style: 'body { font-family: Arial, sans-serif; font-size: 14px; line-height:1.6; } img { max-width: 100%; height: auto; }',
                     branding: false,
                     promotion: false,
+                    relative_urls: false,
+                    remove_script_host: false,
+                    convert_urls: false,
                     setup: function(editor) {
                         // Remove aria-hidden when editor is ready to prevent focus issues
                         editor.on('init', function() {
@@ -857,6 +860,21 @@
                 return d.toLocaleString();
             }
 
+            // Function to fix image URLs in content
+            function fixImageUrls(content) {
+                if (!content) return content;
+
+                const baseUrl = '{{ config('app.url') }}';
+
+                // Replace relative URLs starting with ../storage/ with absolute URLs
+                content = content.replace(/src=["']\.\.\/storage\//g, `src="${baseUrl}/storage/`);
+
+                // Replace relative URLs starting with storage/ with absolute URLs
+                content = content.replace(/src=["'](?!https?:\/\/)storage\//g, `src="${baseUrl}/storage/`);
+
+                return content;
+            }
+
             // Function to update task counters
             function updateTaskCounters() {
                 const totalTasks = $('#taskList li').length;
@@ -944,18 +962,32 @@
                     return;
                 }
 
-                // For description, check if there's any meaningful content
-                const descTextContent = description.replace(/<[^>]*>/g, '').replace(/&nbsp;/g, ' ').trim();
-                if (!description || !descTextContent) {
+                // For description, check if there's any meaningful content (text or images)
+                const descTextContent = description.replace(/<[^>]*>/g, '').replace(/&nbsp;/g, ' ').replace(
+                    /\s+/g, ' ').trim();
+                const hasImages = description.includes('<img');
+                const hasTextContent = descTextContent.length > 0;
+
+                console.log('Description validation:', {
+                    originalDescription: description,
+                    textContent: descTextContent,
+                    textLength: descTextContent.length,
+                    hasImages: hasImages,
+                    hasTextContent: hasTextContent
+                });
+
+                if (!description || (!hasTextContent && !hasImages)) {
                     Swal.fire({
                         icon: 'error',
                         title: 'Validation Error',
-                        text: 'Task description is required',
+                        text: 'Task description is required (text or image)',
                         timer: 2000,
                         showConfirmButton: false
                     });
                     return;
                 }
+
+                console.log('Form validation passed, submitting...');
 
                 $.post("{{ route('tasks.store') }}", {
                     name,
@@ -1302,7 +1334,7 @@
 
                 // If we have a description, show it, otherwise show no description message
                 if (description && description.trim() !== '') {
-                    $('#viewTaskDescription').html(description);
+                    $('#viewTaskDescription').html(fixImageUrls(description));
                 } else {
                     $('#viewTaskDescription').html(
                         '<p class="text-muted"><em>No description available</em></p>');
@@ -1310,7 +1342,7 @@
 
                 // Handle second description field
                 if (description2 && description2.trim() !== '') {
-                    $('#viewTaskDescription2').html(description2);
+                    $('#viewTaskDescription2').html(fixImageUrls(description2));
                 } else {
                     $('#viewTaskDescription2').html(
                         '<p class="text-muted"><em>No additional description</em></p>');
