@@ -74,7 +74,7 @@
                     [0, 'asc']
                 ],
                 language: {
-                    search: "🔍 Search:",
+                    search: "Search:",
                     lengthMenu: "Show _MENU_ entries per page",
                     info: "Showing _START_ to _END_ of _TOTAL_ users",
                     emptyTable: "No users available"

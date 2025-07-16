@@ -546,6 +546,21 @@
             });
         }
 
+        // Function to fix image URLs in content
+        function fixImageUrls(content) {
+            if (!content) return content;
+
+            const baseUrl = '{{ config('app.url') }}';
+
+            // Replace relative URLs starting with ../storage/ with absolute URLs
+            content = content.replace(/src=["']\.\.\/storage\//g, `src="${baseUrl}/storage/`);
+
+            // Replace relative URLs starting with storage/ with absolute URLs
+            content = content.replace(/src=["'](?!https?:\/\/)storage\//g, `src="${baseUrl}/storage/`);
+
+            return content;
+        }
+
         // Function to update task row after completion/undo
         function updateTaskRowAfterCompletion(taskRow, task, isCompleting) {
             const nameCell = taskRow.find('td:nth-child(2)');
@@ -814,6 +829,9 @@
                         }
                     },
                     content_style: 'body { font-family:Helvetica,Arial,sans-serif; font-size:14px; line-height:1.6; } img { max-width: 100%; height: auto; }',
+                    relative_urls: false,
+                    remove_script_host: false,
+                    convert_urls: false,
                     setup: function(editor) {
                         editor.on('change', function() {
                             editor.save();
@@ -986,6 +1004,9 @@
                         }
                     },
                     content_style: 'body { font-family:Helvetica,Arial,sans-serif; font-size:14px; line-height:1.6; } img { max-width: 100%; height: auto; }',
+                    relative_urls: false,
+                    remove_script_host: false,
+                    convert_urls: false,
                     setup: function(editor) {
                         editor.on('change', function() {
                             editor.save();
@@ -1039,8 +1060,8 @@
                 });
             @endif
 
-            // Delete Task Confirmation with AJAX
-            $('.delete-task-btn').on('click', function(e) {
+            // Delete Task Confirmation with AJAX (using event delegation)
+            $(document).on('click', '.delete-task-btn', function(e) {
                 e.preventDefault();
 
                 const form = $(this).closest('form');
@@ -1736,17 +1757,17 @@
 
                         nameElement.textContent = task.name;
 
-                        // Set description content as HTML
+                        // Set description content as HTML with fixed image URLs
                         if (task.description && task.description.trim() !== '') {
-                            descriptionElement.innerHTML = task.description;
+                            descriptionElement.innerHTML = fixImageUrls(task.description);
                         } else {
                             descriptionElement.innerHTML =
                                 '<p class="text-muted"><em>No description available</em></p>';
                         }
 
-                        // Set additional description content as HTML
+                        // Set additional description content as HTML with fixed image URLs
                         if (task.description2 && task.description2.trim() !== '') {
-                            description2Element.innerHTML = task.description2;
+                            description2Element.innerHTML = fixImageUrls(task.description2);
                         } else {
                             description2Element.innerHTML =
                                 '<p class="text-muted"><em>No additional description</em></p>';
