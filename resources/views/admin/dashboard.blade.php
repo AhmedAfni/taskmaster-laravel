@@ -665,10 +665,6 @@
             }
         }
 
-        /**
-         * Add new task row to DataTable after AJAX creation
-         * @param {Object} task - Task object with user data
-         */
         function addNewTaskToTable(task) {
             if ($.fn.DataTable.isDataTable('#userTasksTable')) {
                 const table = $('#userTasksTable').DataTable();

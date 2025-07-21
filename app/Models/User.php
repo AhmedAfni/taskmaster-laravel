@@ -8,14 +8,8 @@ use Illuminate\Notifications\Notifiable;
 
 class User extends Authenticatable
 {
-    /** @use HasFactory<\Database\Factories\UserFactory> */
-    use HasFactory, Notifiable;
+    use HasFactory, Notifiable; 
 
-    /**
-     * The attributes that are mass assignable.
-     *
-     * @var list<string>
-     */
     protected $fillable = [
         'name',
         'email',
@@ -47,9 +41,6 @@ class User extends Authenticatable
         ];
     }
 
-    /**
-     * Get all tasks for the user.
-     */
     public function tasks()
     {
         return $this->hasMany(\App\Models\Task::class);

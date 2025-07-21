@@ -9,25 +9,27 @@ use Illuminate\Support\Facades\Storage;
 
 class TaskController extends Controller
 {
+    // Display a listing of the tasks for the authenticated user.
     public function index()
     {
-        $userId = Auth::id();
+        $userId = Auth::id();   // Get the authenticated user's ID
 
-        $tasks = Task::where('user_id', $userId)->oldest()->get();
+        $tasks = Task::where('user_id', $userId)->oldest()->get(); // Retrieve tasks for the user, ordered by creation date
 
-        $totalTasks = $tasks->count();
-        $completedTasks = $tasks->where('completed', true)->count();
-        $pendingTasks = $tasks->where('completed', false)->count();
+        $totalTasks = $tasks->count(); // Count total tasks for the user
+        $completedTasks = $tasks->where('completed', true)->count(); // Count completed tasks for the user
+        $pendingTasks = $tasks->where('completed', false)->count(); // Count pending tasks for the user
 
-        return view('tasks', compact('tasks', 'totalTasks', 'completedTasks', 'pendingTasks'));
+        return view('tasks', compact('tasks', 'totalTasks', 'completedTasks', 'pendingTasks')); // Return the tasks view with the tasks and counts
     }
 
+    // Store a new task for the authenticated user
     public function store(Request $request)
     {
         try {
             $request->validate([
                 'name' => 'required|string|max:255',
-                'description' => 'required|string|max:16777215', // Changed to handle larger content
+                'description' => 'required|string|max:16777215',
                 'description2' => 'nullable|string|max:16777215'
             ]);
 
@@ -56,6 +58,7 @@ class TaskController extends Controller
             }
 
             return redirect('/');
+
         } catch (\Illuminate\Validation\ValidationException $e) {
             if ($request->expectsJson()) {
                 return response()->json([
@@ -65,6 +68,7 @@ class TaskController extends Controller
                 ], 422);
             }
             throw $e;
+
         } catch (\Exception $e) {
             if ($request->expectsJson()) {
                 return response()->json([
@@ -76,13 +80,14 @@ class TaskController extends Controller
         }
     }
 
+    // Update the completion status of a task
     public function update(Task $task, Request $request)
     {
-        $this->authorize('update', $task);
+        $this->authorize('update', $task); // Authorize the user to update the task
 
-        $isNowCompleted = !$task->completed;
+        $isNowCompleted = !$task->completed; // Toggle the completion status
 
-        $task->update([
+        $task->update([ // Update the task with the new completion status
             'completed' => $isNowCompleted,
             'completed_at' => $isNowCompleted ? now() : null
         ]);
@@ -102,14 +107,14 @@ class TaskController extends Controller
         return redirect('/');
     }
 
+    // Delete a task and its associated images
     public function destroy(Task $task, Request $request)
     {
-        $this->authorize('delete', $task);
+        $this->authorize('delete', $task); // Authorize the user to delete the task
 
-        // Extract and delete images from description before deleting task
-        $this->deleteImagesFromDescription($task->description);
+        $this->deleteImagesFromDescription($task->description); // Delete images from the task description
 
-        $task->delete();
+        $task->delete(); // Delete the task
 
         if ($request->expectsJson()) {
             return response()->json(['success' => true]);
@@ -118,9 +123,10 @@ class TaskController extends Controller
         return redirect('/');
     }
 
+    // Edit the name and description of a task
     public function editName(Request $request, Task $task)
     {
-        $this->authorize('editName', $task);
+        $this->authorize('editName', $task); // Authorize the user to edit the task name
 
         $request->validate([
             'name' => 'required|string|max:255',
@@ -146,9 +152,10 @@ class TaskController extends Controller
         return redirect('/');
     }
 
+    // Show the details of a specific task
     public function show(Task $task)
     {
-        $this->authorize('view', $task);
+        $this->authorize('view', $task); // Authorize the user to view the task
 
         return response()->json([
             'id' => $task->id,
@@ -161,43 +168,42 @@ class TaskController extends Controller
         ]);
     }
 
+    // Upload an image associated with a task
     public function uploadImage(Request $request)
     {
         try {
             $request->validate([
-                'image' => 'required|image|mimes:jpeg,png,jpg,gif,webp|max:10240' // 10MB max
+                'image' => 'required|image|mimes:jpeg,png,jpg,gif,webp|max:10240' // Validate the image file
             ]);
 
-            if ($request->hasFile('image')) {
-                $image = $request->file('image');
+            if ($request->hasFile('image')) { // Check if the image file is present
+                $image = $request->file('image'); // Get the uploaded image file
 
-                // Generate unique filename
-                $filename = time() . '_' . uniqid() . '.' . $image->getClientOriginalExtension();
+                $filename = time() . '_' . uniqid() . '.' . $image->getClientOriginalExtension(); // Generate a unique filename
 
-                // Store in storage/app/public/task-images
-                $path = $image->storeAs('task-images', $filename, 'public');
+                $path = $image->storeAs('task-images', $filename, 'public'); // Store the image in the public disk under 'task-images' directory
 
-                // Generate absolute URL with proper base URL
-                $baseUrl = config('app.url');
-                $url = $baseUrl . '/storage/' . $path;
+                $baseUrl = config('app.url'); // Get the base URL from the application configuration
 
-                // Alternative: Use asset() but ensure it generates absolute URL
-                $assetUrl = asset('storage/' . $path);
+                $url = $baseUrl . '/storage/' . $path; // Construct the full URL to access the image
 
-                // Log for debugging
+                $assetUrl = asset('storage/' . $path); // Get the asset URL for the image
+
+                // Log the image upload details
                 \Log::info('Image uploaded', [
-                    'filename' => $filename,
-                    'path' => $path,
-                    'config_url' => $baseUrl,
-                    'asset_url' => $assetUrl,
-                    'final_url' => $url,
-                    'user_agent' => $request->header('User-Agent'),
-                    'referer' => $request->header('Referer')
+                    'filename' => $filename, // Log the filename
+                    'path' => $path, // Log the storage path
+                    'config_url' => $baseUrl, // Log the base URL
+                    'asset_url' => $assetUrl, // Log the asset URL
+                    'final_url' => $url, // Log the final URL
+                    'user_agent' => $request->header('User-Agent'), // Log the user agent
+                    'referer' => $request->header('Referer') // Log the referer header
                 ]);
 
+                // Return a JSON response with the success status and image details
                 return response()->json([
                     'success' => true,
-                    'url' => $url, // Use the absolute URL with config base
+                    'url' => $url,
                     'path' => $path,
                     'debug' => [
                         'config_url' => $baseUrl,
@@ -225,16 +231,14 @@ class TaskController extends Controller
         }
     }
 
-    /**
-     * Get task data for API calls (used by modals)
-     */
+    // Get the task data for a specific task
     public function getTaskData(Task $task)
     {
-        // Ensure the task belongs to the authenticated user
-        if ($task->user_id !== Auth::id()) {
-            return response()->json(['error' => 'Unauthorized'], 403);
+        if ($task->user_id !== Auth::id()) { // Check if the authenticated user is the owner of the task
+            return response()->json(['error' => 'Unauthorized'], 403); // Return a 403 Unauthorized response if not
         }
 
+        // Return the task data in JSON format
         return response()->json([
             'success' => true,
             'task' => [
@@ -250,39 +254,34 @@ class TaskController extends Controller
         ]);
     }
 
-    /**
-     * Serve images directly (fallback for symbolic link issues)
-     */
+    // Serve an image file from the storage
     public function serveImage($filename)
     {
-        $path = 'task-images/' . $filename;
+        $path = 'task-images/' . $filename; // Construct the path to the image file
 
-        if (!Storage::disk('public')->exists($path)) {
-            abort(404);
+        if (!Storage::disk('public')->exists($path)) { // Check if the image file exists in the public storage
+            abort(404); // Return a 404 Not Found response if the file does not exist
         }
 
-        $file = Storage::disk('public')->get($path);
-        $mimeType = Storage::disk('public')->mimeType($path);
+        $file = Storage::disk('public')->get($path); // Get the contents of the image file
+        $mimeType = Storage::disk('public')->mimeType($path); // Get the MIME type of the image file
 
-        return response($file)->header('Content-Type', $mimeType);
+        return response($file)->header('Content-Type', $mimeType); // Return the image file with the appropriate content type header
     }
 
-    /**
-     * Delete images from description content
-     */
+    // Delete images from the task description
     private function deleteImagesFromDescription($description)
     {
-        // Extract image URLs from the description HTML
+        // Use regex to find all image URLs in the description
         preg_match_all('/src="([^"]*storage\/task-images\/[^"]*)"/', $description, $matches);
 
-        if (!empty($matches[1])) {
-            foreach ($matches[1] as $imageUrl) {
-                // Extract the path from the URL
-                $path = str_replace(asset('storage/'), '', $imageUrl);
+        if (!empty($matches[1])) { // Check if any image URLs were found
+            foreach ($matches[1] as $imageUrl) { // Iterate through each found image URL
 
-                // Delete the file if it exists
-                if (Storage::disk('public')->exists($path)) {
-                    Storage::disk('public')->delete($path);
+                $path = str_replace(asset('storage/'), '', $imageUrl); // Remove the base URL to get the storage path
+
+                if (Storage::disk('public')->exists($path)) { // Check if the image file exists in the public storage
+                    Storage::disk('public')->delete($path); // Delete the image file from the public storage
                 }
             }
         }

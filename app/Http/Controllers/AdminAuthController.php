@@ -9,23 +9,19 @@ use Illuminate\Support\Facades\Hash;
 
 class AdminAuthController extends Controller
 {
-    /**
-     * Show the admin registration form.
-     */
+    // Show the admin registration form
     public function showRegisterForm()
     {
-        return view('admin.register');
+        return view('admin.register'); // Loads the admin registration page from the blade view
     }
 
-    /**
-     * Handle admin registration.
-     */
+    // Handle the admin registration
     public function register(Request $request)
     {
         $request->validate([
             'name' => 'required|string|max:255',
             'email' => 'required|email|unique:admins,email',
-            'password' => 'required|confirmed|min:6',
+            'password' => 'required|confirmed|min:6', // Password must be confirmed and at least 6 characters long
         ]);
 
         Admin::create([
@@ -38,43 +34,38 @@ class AdminAuthController extends Controller
                          ->with('success', 'Registration successful. Please log in.');
     }
 
-    /**
-     * Show the admin login form.
-     */
+    // Show the admin login form
     public function showLoginForm()
     {
-        return view('admin.login');
+        return view('admin.login'); // Loads the admin login page from the blade view
     }
 
-    /**
-     * Handle admin login attempt.
-     */
+    // Handle the admin login
     public function login(Request $request)
     {
         $credentials = $request->only('email', 'password');
 
-        if (Auth::guard('admin')->attempt($credentials)) {
-            return redirect()->route('admin.dashboard')
-                             ->with('success', 'Login successful');
+        if (Auth::guard('admin')->attempt($credentials)) { // Attempt to log in the admin user & configured a custom admin guard
+            return redirect()->route('admin.dashboard') // Redirect to the admin dashboard after successful login
+                             ->with('success', 'Login successful'); // Adds a success message
         }
 
-        // Use both SweetAlert-compatible error and validation bag
+        // If login fails and redirects back
         return back()
-            ->withErrors(['email' => 'Invalid email or password'])
-            ->with('error', 'Invalid email or password')
-            ->withInput();
+            ->withErrors(['email' => 'Invalid email or password'])  // Adds an error message for invalid credentials
+            ->with('error', 'Invalid email or password') // error flash message (for SweetAlert or similar)
+            ->withInput();  // withInput() keeps the email field filled
     }
 
-    /**
-     * Logout the admin.
-     */
+    // Logs out the current admin user
     public function logout(Request $request)
     {
         Auth::guard('admin')->logout();
 
-        $request->session()->invalidate();
+        $request->session()->invalidate(); // Invalidates and regenerates the session
         $request->session()->regenerateToken();
 
+        // Redirects to login page with a success message
         return redirect()->route('admin.login.form')->with('success', 'Logged out successfully.');
     }
 }
