@@ -320,6 +320,10 @@
                         <textarea class="form-control" id="taskDescription2" name="description2" rows="3"
                             placeholder="Enter additional description (optional)..."></textarea>
                     </div>
+                    <div class="mb-3">
+                        <label for="taskImage" class="form-label">Task Image</label>
+                        <input type="file" class="form-control" id="taskImage" name="image" accept="image/*">
+                    </div>
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">
@@ -371,7 +375,7 @@
     </div>
 
     <!-- View Task Modal -->
-    <div class="modal fade" id="viewTaskModal" tabindex="-1">
+    <div class="modal fade" id="viewTaskModal" tabindex="-1">   
         <div class="modal-dialog modal-xl">
             <div class="modal-content">
                 <div class="modal-header">
@@ -400,6 +404,9 @@
                     <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">
                         <i class="bi bi-x-circle"></i> Close
                     </button>
+                    <a id="fullTaskViewBtn" href="#" target="_blank" class="btn btn-primary">
+                        <i class="bi bi-box-arrow-up-right"></i> Full Task View
+                    </a>
                 </div>
             </div>
         </div>
@@ -453,6 +460,9 @@
             pointer-events: none !important;
         }
     </style>
+    <script>
+        const BASE_URL = "{{ url('/') }}";
+    </script>
     <script>
         $(function() {
             const token = $('meta[name="csrf-token"]').attr('content');
@@ -918,7 +928,7 @@
             });
 
             // Add Task
-            $('#addTaskForm').on('submit', function(e) {
+            $('#addTaskForm').off('submit').on('submit', function(e) {
                 e.preventDefault();
                 const name = $('#taskName').val().trim();
 
@@ -950,156 +960,59 @@
                     description2 = $('#taskDescription2').val().trim();
                 }
 
-                // Validate required fields
-                if (!name) {
-                    Swal.fire({
-                        icon: 'error',
-                        title: 'Validation Error',
-                        text: 'Task name is required',
-                        timer: 2000,
-                        showConfirmButton: false
-                    });
-                    return;
+                // Prepare FormData for AJAX
+                const formData = new FormData();
+                formData.append('name', name);
+                formData.append('description', description);
+                formData.append('description2', description2);
+                formData.append('_token', token);
+
+                // Append image if selected
+                const imageFile = $('#taskImage')[0].files[0];
+                if (imageFile) {
+                    formData.append('image', imageFile);
                 }
 
-                // For description, check if there's any meaningful content (text or images)
-                const descTextContent = description.replace(/<[^>]*>/g, '').replace(/&nbsp;/g, ' ').replace(
-                    /\s+/g, ' ').trim();
-                const hasImages = description.includes('<img');
-                const hasTextContent = descTextContent.length > 0;
-
-                console.log('Description validation:', {
-                    originalDescription: description,
-                    textContent: descTextContent,
-                    textLength: descTextContent.length,
-                    hasImages: hasImages,
-                    hasTextContent: hasTextContent
-                });
-
-                if (!description || (!hasTextContent && !hasImages)) {
-                    Swal.fire({
-                        icon: 'error',
-                        title: 'Validation Error',
-                        text: 'Task description is required (text or image)',
-                        timer: 2000,
-                        showConfirmButton: false
-                    });
-                    return;
-                }
-
-                console.log('Form validation passed, submitting...');
-
-                $.post("{{ route('tasks.store') }}", {
-                    name,
-                    description,
-                    description2,
-                    _token: token
-                }, function(res) {
-                    if (res.success) {
+                $.ajax({
+                    url: "{{ route('tasks.store') }}",
+                    type: "POST",
+                    data: formData,
+                    processData: false,
+                    contentType: false,
+                    success: function(res) {
+                        if (res.success) {
+                            Swal.fire({
+                                icon: 'success',
+                                title: 'Task Added!',
+                                timer: 2000,
+                                showConfirmButton: false
+                            });
+                            location.reload();
+                        }
+                    },
+                    error: function(xhr) {
+                        let errorMessage = 'Failed to add task';
+                        if (xhr.responseJSON && xhr.responseJSON.message) {
+                            errorMessage = xhr.responseJSON.message;
+                        } else if (xhr.responseJSON && xhr.responseJSON.errors) {
+                            const errors = Object.values(xhr.responseJSON.errors).flat();
+                            errorMessage = errors.join(', ');
+                        } else if (xhr.responseText) {
+                            try {
+                                const response = JSON.parse(xhr.responseText);
+                                if (response.message) {
+                                    errorMessage = response.message;
+                                }
+                            } catch (e) {}
+                        }
                         Swal.fire({
-                            icon: 'success',
-                            title: 'Task Added!',
-                            timer: 2000,
-                            showConfirmButton: false
+                            icon: 'error',
+                            title: 'Error Adding Task',
+                            text: errorMessage,
+                            timer: 5000,
+                            showConfirmButton: true
                         });
-
-                        // Create DOM elements properly
-                        const $taskItem = $(`
-                            <li class="list-group-item" id="task-${res.task.id}">
-                                <p class="mb-2">
-                                    <span class="task-text">${res.task.name}</span>
-                                </p>
-                                <small class="text-muted d-block ms-1">
-                                    Created: ${formatDate(res.task.created_at)}
-                                </small>
-                                <div class="d-flex mt-2">
-                                    <button class="btn btn-sm btn-outline-info me-2 view-btn" title="View">
-                                        <i class="bi bi-eye"></i>
-                                    </button>
-                                    <button class="btn btn-sm btn-outline-primary me-2 edit-btn" title="Edit">
-                                        <i class="bi bi-pencil-square"></i>
-                                    </button>
-                                    <button class="btn btn-sm btn-outline-success me-2 complete-btn" title="Complete">
-                                        <i class="bi bi-check2-circle"></i>
-                                    </button>
-                                    <button class="btn btn-sm btn-outline-danger delete-btn">
-                                        <i class="bi bi-trash3"></i>
-                                    </button>
-                                </div>
-                            </li>
-                        `);
-
-                        // Set data attributes properly
-                        $taskItem.find('.task-text')
-                            .data('id', res.task.id)
-                            .data('name', res.task.name)
-                            .data('description', res.task.description)
-                            .data('description2', res.task.description2 || '');
-
-                        $taskItem.find('.view-btn')
-                            .data('id', res.task.id)
-                            .data('name', res.task.name)
-                            .data('description', res.task.description)
-                            .data('description2', res.task.description2 || '');
-
-                        $taskItem.find('.edit-btn')
-                            .data('id', res.task.id)
-                            .data('name', res.task.name)
-                            .data('description', res.task.description)
-                            .data('description2', res.task.description2 || '');
-
-                        $taskItem.find('.complete-btn, .delete-btn')
-                            .data('id', res.task.id);
-
-                        $('#taskList').prepend($taskItem);
-                        $('#taskName').val('');
-
-                        // Clear TinyMCE content if available, otherwise clear textarea
-                        const tinyMCEInstance = tinymce.get('taskDescription');
-                        if (tinyMCEInstance) {
-                            tinyMCEInstance.setContent('');
-                        } else {
-                            $('#taskDescription').val('');
-                        }
-
-                        // Clear second description field (CKEditor5)
-                        if (addTaskEditor2) {
-                            addTaskEditor2.setData('');
-                        } else {
-                            $('#taskDescription2').val('');
-                        }
-
-                        addModal.hide();
-
-                        // Update task counters
-                        updateTaskCounters();
                     }
-                }).fail(function(xhr) {
-                    let errorMessage = 'Failed to add task';
-
-                    if (xhr.responseJSON && xhr.responseJSON.message) {
-                        errorMessage = xhr.responseJSON.message;
-                    } else if (xhr.responseJSON && xhr.responseJSON.errors) {
-                        const errors = Object.values(xhr.responseJSON.errors).flat();
-                        errorMessage = errors.join(', ');
-                    } else if (xhr.responseText) {
-                        try {
-                            const response = JSON.parse(xhr.responseText);
-                            if (response.message) {
-                                errorMessage = response.message;
-                            }
-                        } catch (e) {
-                            // Error parsing response
-                        }
-                    }
-
-                    Swal.fire({
-                        icon: 'error',
-                        title: 'Error Adding Task',
-                        text: errorMessage,
-                        timer: 5000,
-                        showConfirmButton: true
-                    });
                 });
             });
 
@@ -1370,6 +1283,9 @@
                         });
                     });
                 }, 300);
+
+                // Set Full Task View button href with base URL
+                $('#fullTaskViewBtn').attr('href', BASE_URL + '/tasks/' + id + '/full-view');
             });
 
             // Image zoom modal close functionality

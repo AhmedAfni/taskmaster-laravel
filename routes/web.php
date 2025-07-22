@@ -33,6 +33,7 @@ Route::middleware('auth')->group(function () {
     Route::post('/tasks/{task}/delete', [TaskController::class, 'destroy'])->name('tasks.delete');
     Route::post('/tasks/{task}/edit', [TaskController::class, 'editName'])->name('tasks.edit');
     Route::get('/tasks/{task}/details', [TaskController::class, 'show'])->name('tasks.details');
+    Route::get('/tasks/{task}/full-view', [TaskController::class, 'fullView'])->name('tasks.fullView');
 
     // Image upload route
     Route::post('/upload-image', [TaskController::class, 'uploadImage'])->name('upload.image');

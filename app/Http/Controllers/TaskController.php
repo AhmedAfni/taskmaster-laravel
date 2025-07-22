@@ -30,8 +30,16 @@ class TaskController extends Controller
             $request->validate([
                 'name' => 'required|string|max:255',
                 'description' => 'required|string|max:16777215',
-                'description2' => 'nullable|string|max:16777215'
+                'description2' => 'nullable|string|max:16777215',
+                'image' => 'nullable|image|mimes:jpeg,png,jpg,gif,webp|max:10240',
             ]);
+
+            $imagePath = null;
+            if ($request->hasFile('image')) {
+                $image = $request->file('image');
+                $filename = time() . '_' . uniqid() . '.' . $image->getClientOriginalExtension();
+                $imagePath = $image->storeAs('task-images', $filename, 'public');
+            }
 
             $task = Task::create([
                 'name' => $request->name,
@@ -39,7 +47,8 @@ class TaskController extends Controller
                 'description2' => $request->description2,
                 'user_id' => Auth::id(),
                 'completed' => false,
-                'completed_at' => null
+                'completed_at' => null,
+                'image' => $imagePath,
             ]);
 
             if ($request->expectsJson()) {
@@ -52,7 +61,8 @@ class TaskController extends Controller
                         'description2' => $task->description2,
                         'created_at' => $task->created_at->format('Y-m-d H:i:s'),
                         'completed' => $task->completed,
-                        'completed_at' => $task->completed_at
+                        'completed_at' => $task->completed_at,
+                        'image' => $task->image,
                     ]
                 ]);
             }
@@ -285,6 +295,12 @@ class TaskController extends Controller
                 }
             }
         }
+    }
+
+    public function fullView(Task $task)
+    {
+        $this->authorize('view', $task); // Optional: if you use policies
+        return view('task_full_view', compact('task'));
     }
 
 }

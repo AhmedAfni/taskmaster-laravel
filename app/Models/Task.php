@@ -8,7 +8,9 @@ use Illuminate\Database\Eloquent\Model;
 class Task extends Model
 {
     // The Task model represents a task in the application.
-    protected $fillable = ['name', 'description', 'description2', 'completed', 'user_id', 'completed_at', 'assigned_by_admin_id'];
+    protected $fillable = [
+        'name', 'description', 'description2', 'completed', 'user_id', 'completed_at', 'assigned_by_admin_id', 'image'
+    ];
     // The fillable property specifies which attributes can be assigned.
 
     protected $casts = [ // The casts property specifies how attributes should be cast when retrieved from the database.
