@@ -1,9 +1,10 @@
 @extends('admin.layout')
+{{-- Extend the admin layout from resources/views/admin/layout.blade.php--}}
 
-@section('content')
-    <h2 class="mb-4">Registered Users</h2>
+@section('content') {{-- Main content section for displaying users --}}
+    <h2 class="mb-4">Registered Users</h2> {{-- Page title for users section --}}
     <div class="table-responsive">
-        <table id="usersTable" class="table table-bordered table-striped align-middle">
+        <table id="usersTable" class="table table-bordered table-striped align-middle"> {{--bootstrap styled table--}}
             <thead class="table-dark">
                 <tr>
                     <th>#</th>
@@ -14,12 +15,14 @@
                 </tr>
             </thead>
             <tbody>
+                {{-- Loop through users and display each user in a table row --}}
                 @forelse($users as $index => $user)
                     <tr>
-                        <td>{{ $index + 1 }}</td>
-                        <td>{{ $user->name }}</td>
-                        <td>{{ $user->email }}</td>
-                        <td>{{ $user->created_at->format('d M Y, h:i A') }}</td>
+                        <td>{{ $index + 1 }}</td> {{-- Display user index --}}
+                        <td>{{ $user->name }}</td> {{-- Display user name --}}
+                        <td>{{ $user->email }}</td> {{-- Display user email --}}
+                        <td>{{ $user->created_at->format('d M Y, h:i A') }}</td> {{-- Display user registration date --}}
+
                         <td class="d-flex gap-2">
                             {{-- View Tasks Button --}}
                             <a href="{{ route('admin.users.tasks', $user->id) }}"
