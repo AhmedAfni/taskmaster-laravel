@@ -30,4 +30,8 @@ class Task extends Model
         // The admin method defines a relationship where a task is assigned by an admin.
     }
 
+    public function images()
+    {
+        return $this->hasMany(TaskImage::class);
+    }
 }

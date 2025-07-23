@@ -31,15 +31,9 @@ class TaskController extends Controller
                 'name' => 'required|string|max:255',
                 'description' => 'required|string|max:16777215',
                 'description2' => 'nullable|string|max:16777215',
-                'image' => 'nullable|image|mimes:jpeg,png,jpg,gif,webp|max:10240',
+                'images' => 'nullable',
+                'images.*' => 'image|mimes:jpeg,png,jpg,gif,webp|max:10240',
             ]);
-
-            $imagePath = null;
-            if ($request->hasFile('image')) {
-                $image = $request->file('image');
-                $filename = time() . '_' . uniqid() . '.' . $image->getClientOriginalExtension();
-                $imagePath = $image->storeAs('task-images', $filename, 'public');
-            }
 
             $task = Task::create([
                 'name' => $request->name,
@@ -48,8 +42,16 @@ class TaskController extends Controller
                 'user_id' => Auth::id(),
                 'completed' => false,
                 'completed_at' => null,
-                'image' => $imagePath,
             ]);
+
+            // Handle multiple images
+            if ($request->hasFile('images')) {
+                foreach ($request->file('images') as $image) {
+                    $filename = time() . '_' . uniqid() . '.' . $image->getClientOriginalExtension();
+                    $imagePath = $image->storeAs('task-images', $filename, 'public');
+                    $task->images()->create(['image_path' => $imagePath]);
+                }
+            }
 
             if ($request->expectsJson()) {
                 return response()->json([
@@ -62,31 +64,17 @@ class TaskController extends Controller
                         'created_at' => $task->created_at->format('Y-m-d H:i:s'),
                         'completed' => $task->completed,
                         'completed_at' => $task->completed_at,
-                        'image' => $task->image,
+                        'images' => $task->images->pluck('image_path'),
                     ]
                 ]);
             }
 
             return redirect('/');
-
-        } catch (\Illuminate\Validation\ValidationException $e) {
-            if ($request->expectsJson()) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Validation failed',
-                    'errors' => $e->errors()
-                ], 422);
-            }
-            throw $e;
-
         } catch (\Exception $e) {
-            if ($request->expectsJson()) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Failed to create task: ' . $e->getMessage()
-                ], 500);
-            }
-            throw $e;
+            return response()->json([
+                'success' => false,
+                'message' => $e->getMessage()
+            ], 500);
         }
     }
 

@@ -322,7 +322,8 @@
                     </div>
                     <div class="mb-3">
                         <label for="taskImage" class="form-label">Task Image</label>
-                        <input type="file" class="form-control" id="taskImage" name="image" accept="image/*">
+                        <input type="file" class="form-control" id="taskImage" name="images[]" accept="image/*"
+                            multiple>
                     </div>
                 </div>
                 <div class="modal-footer">
@@ -375,7 +376,7 @@
     </div>
 
     <!-- View Task Modal -->
-    <div class="modal fade" id="viewTaskModal" tabindex="-1">   
+    <div class="modal fade" id="viewTaskModal" tabindex="-1">
         <div class="modal-dialog modal-xl">
             <div class="modal-content">
                 <div class="modal-header">
@@ -386,6 +387,10 @@
                     <div class="mb-3">
                         <label class="form-label fw-bold">Task Heading</label>
                         <p class="form-control-plaintext border rounded p-2 bg-light" id="viewTaskName"></p>
+                    </div>
+                    <div class="mb-3" id="viewTaskImagesContainer" style="display:none;">
+                        <label class="form-label fw-bold">Images</label>
+                        <div id="viewTaskImages"></div>
                     </div>
                     <div class="mb-3">
                         <label class="form-label fw-bold">Description</label>
@@ -968,9 +973,11 @@
                 formData.append('_token', token);
 
                 // Append image if selected
-                const imageFile = $('#taskImage')[0].files[0];
-                if (imageFile) {
-                    formData.append('image', imageFile);
+                const imageFiles = $('#taskImage')[0].files;
+                if (imageFiles.length > 0) {
+                    for (let i = 0; i < imageFiles.length; i++) {
+                        formData.append('images[]', imageFiles[i]);
+                    }
                 }
 
                 $.ajax({
@@ -1260,6 +1267,22 @@
                     $('#viewTaskDescription2').html(
                         '<p class="text-muted"><em>No additional description</em></p>');
                 }
+
+                // Fetch and display images for the view modal
+                $.get(BASE_URL + '/api/tasks/' + id, function(res) {
+                    if (res.success && res.task.images && res.task.images.length > 0) {
+                        let imagesHtml = '';
+                        res.task.images.forEach(function(imgPath) {
+                            imagesHtml +=
+                                `<img src='${BASE_URL}/storage/${imgPath}' alt='Task Image' style='max-width:120px;max-height:120px;margin:4px;border-radius:6px;box-shadow:0 1px 4px rgba(0,0,0,0.08);cursor:pointer;' class='task-modal-image'>`;
+                        });
+                        $('#viewTaskImages').html(imagesHtml);
+                        $('#viewTaskImagesContainer').show();
+                    } else {
+                        $('#viewTaskImages').html('');
+                        $('#viewTaskImagesContainer').hide();
+                    }
+                });
 
                 viewModal.show();
 
