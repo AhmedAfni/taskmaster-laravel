@@ -31,6 +31,7 @@ class TaskController extends Controller
                 'name' => 'required|string|max:255',
                 'description' => 'required|string|max:16777215',
                 'description2' => 'nullable|string|max:16777215',
+                'scheduled_at' => 'nullable|date',
                 'images' => 'nullable',
                 'images.*' => 'image|mimes:jpeg,png,jpg,gif,webp|max:10240',
             ]);
@@ -42,6 +43,7 @@ class TaskController extends Controller
                 'user_id' => Auth::id(),
                 'completed' => false,
                 'completed_at' => null,
+                'scheduled_at' => $request->scheduled_at,
             ]);
 
             // Handle multiple images
@@ -129,13 +131,15 @@ class TaskController extends Controller
         $request->validate([
             'name' => 'required|string|max:255',
             'description' => 'required|string|max:16777215',
-            'description2' => 'nullable|string|max:16777215'
+            'description2' => 'nullable|string|max:16777215',
+            'scheduled_at' => 'nullable|date'
         ]);
 
         $task->update([
             'name' => $request->name,
             'description' => $request->description,
-            'description2' => $request->description2
+            'description2' => $request->description2,
+            'scheduled_at' => $request->scheduled_at
         ]);
 
         if ($request->expectsJson()) {
@@ -143,7 +147,8 @@ class TaskController extends Controller
                 'success' => true,
                 'name' => $task->name,
                 'description' => $task->description,
-                'description2' => $task->description2
+                'description2' => $task->description2,
+                'scheduled_at' => $task->scheduled_at
             ]);
         }
 
@@ -247,7 +252,8 @@ class TaskController extends Controller
                 'completed' => $task->completed,
                 'created_at' => $task->created_at,
                 'updated_at' => $task->updated_at,
-                'completed_at' => $task->completed_at
+                'completed_at' => $task->completed_at,
+                'scheduled_at' => $task->scheduled_at,
             ]
         ]);
     }

@@ -198,6 +198,17 @@
                         <i class="bi bi-box-arrow-right"></i>
                     </button>
                 </form>
+
+                @auth
+                    {{-- Google OAuth integration --}}
+                    @if (!Auth::user()->google_access_token)
+                        <a href="{{ route('google.oauth.redirect') }}" class="btn btn-danger btn-sm ms-2">
+                            <i class="bi bi-google"></i> Connect Google Account
+                        </a>
+                    @else
+                        <span class="badge bg-success ms-2">Google Connected</span>
+                    @endif
+                @endauth
             </div>
         </div>
     </nav>
@@ -325,6 +336,10 @@
                         <input type="file" class="form-control" id="taskImage" name="images[]" accept="image/*"
                             multiple>
                     </div>
+                    <div class="mb-3">
+                        <label for="scheduledAt" class="form-label">Schedule Meeting Date & Time</label>
+                        <input type="datetime-local" class="form-control" id="scheduledAt" name="scheduled_at">
+                    </div>
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">
@@ -362,6 +377,11 @@
                         <textarea class="form-control" id="editTaskDescription2" name="editTaskDescription2" rows="3"
                             placeholder="Enter additional description (optional)..."></textarea>
                     </div>
+                    <div class="mb-3">
+                        <label for="editScheduledAt" class="form-label">Schedule Meeting Date & Time</label>
+                        <input type="datetime-local" class="form-control" id="editScheduledAt"
+                            name="editScheduledAt">
+                    </div>
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">
@@ -387,6 +407,10 @@
                     <div class="mb-3">
                         <label class="form-label fw-bold">Task Heading</label>
                         <p class="form-control-plaintext border rounded p-2 bg-light" id="viewTaskName"></p>
+                    </div>
+                    <div class="mb-3" id="viewTaskScheduledContainer" style="display:none;">
+                        <label class="form-label fw-bold">Scheduled Meeting</label>
+                        <div class="border rounded p-2 bg-light" id="viewTaskScheduled"></div>
                     </div>
                     <div class="mb-3" id="viewTaskImagesContainer" style="display:none;">
                         <label class="form-label fw-bold">Images</label>
@@ -965,11 +989,15 @@
                     description2 = $('#taskDescription2').val().trim();
                 }
 
+                // Get scheduled_at value
+                const scheduledAt = $('#scheduledAt').val();
+
                 // Prepare FormData for AJAX
                 const formData = new FormData();
                 formData.append('name', name);
                 formData.append('description', description);
                 formData.append('description2', description2);
+                formData.append('scheduled_at', scheduledAt);
                 formData.append('_token', token);
 
                 // Append image if selected
@@ -1044,29 +1072,44 @@
                     return;
                 }
 
-                // Populate the edit modal
-                $('#editTaskId').val(id);
-                $('#editTaskName').val(name);
+                // Fetch complete task data from API to get scheduled_at
+                $.get(BASE_URL + '/api/tasks/' + id, function(res) {
+                    if (res.success && res.task) {
+                        // Populate the edit modal
+                        $('#editTaskId').val(id);
+                        $('#editTaskName').val(name);
 
-                // Set description in TinyMCE if available, otherwise in textarea
-                const editTinyMCEInstance = tinymce.get('editTaskDescription');
-                if (editTinyMCEInstance) {
-                    editTinyMCEInstance.setContent(description || '');
-                } else {
-                    $('#editTaskDescription').val(description || '');
-                }
+                        // Set description in TinyMCE if available, otherwise in textarea
+                        const editTinyMCEInstance = tinymce.get('editTaskDescription');
+                        if (editTinyMCEInstance) {
+                            editTinyMCEInstance.setContent(description || '');
+                        } else {
+                            $('#editTaskDescription').val(description || '');
+                        }
 
-                // Set additional description in CKEditor5 if available, otherwise in textarea
-                const editDesc2Element = document.querySelector('#editTaskDescription2');
-                if (editTaskEditor2) {
-                    editTaskEditor2.setData(description2);
-                } else {
-                    // Store the data temporarily for when the editor is initialized
-                    $(editDesc2Element).data('pending-content', description2);
-                    $('#editTaskDescription2').val(description2);
-                }
+                        // Set additional description in CKEditor5 if available, otherwise in textarea
+                        const editDesc2Element = document.querySelector('#editTaskDescription2');
+                        if (editTaskEditor2) {
+                            editTaskEditor2.setData(description2);
+                        } else {
+                            // Store the data temporarily for when the editor is initialized
+                            $(editDesc2Element).data('pending-content', description2);
+                            $('#editTaskDescription2').val(description2);
+                        }
 
-                editModal.show();
+                        // Set scheduled_at if available
+                        if (res.task.scheduled_at) {
+                            // Convert to datetime-local format (YYYY-MM-DDTHH:MM)
+                            const scheduledDate = new Date(res.task.scheduled_at);
+                            const formattedDate = scheduledDate.toISOString().slice(0, 16);
+                            $('#editScheduledAt').val(formattedDate);
+                        } else {
+                            $('#editScheduledAt').val('');
+                        }
+
+                        editModal.show();
+                    }
+                });
             });
 
             // Edit Task Modal functionality - Click on edit button (explicit edit)
@@ -1076,29 +1119,44 @@
                 const description = $(this).data('description');
                 const description2 = $(this).data('description2') || '';
 
-                // Populate the edit modal
-                $('#editTaskId').val(id);
-                $('#editTaskName').val(name);
+                // Fetch complete task data from API to get scheduled_at
+                $.get(BASE_URL + '/api/tasks/' + id, function(res) {
+                    if (res.success && res.task) {
+                        // Populate the edit modal
+                        $('#editTaskId').val(id);
+                        $('#editTaskName').val(name);
 
-                // Set description in TinyMCE if available, otherwise in textarea
-                const editTinyMCEInstance = tinymce.get('editTaskDescription');
-                if (editTinyMCEInstance) {
-                    editTinyMCEInstance.setContent(description || '');
-                } else {
-                    $('#editTaskDescription').val(description || '');
-                }
+                        // Set description in TinyMCE if available, otherwise in textarea
+                        const editTinyMCEInstance = tinymce.get('editTaskDescription');
+                        if (editTinyMCEInstance) {
+                            editTinyMCEInstance.setContent(description || '');
+                        } else {
+                            $('#editTaskDescription').val(description || '');
+                        }
 
-                // Set additional description in CKEditor5 if available, otherwise in textarea
-                const editDesc2Element = document.querySelector('#editTaskDescription2');
-                if (editTaskEditor2) {
-                    editTaskEditor2.setData(description2);
-                } else {
-                    // Store the data temporarily for when the editor is initialized
-                    $(editDesc2Element).data('pending-content', description2);
-                    $('#editTaskDescription2').val(description2);
-                }
+                        // Set additional description in CKEditor5 if available, otherwise in textarea
+                        const editDesc2Element = document.querySelector('#editTaskDescription2');
+                        if (editTaskEditor2) {
+                            editTaskEditor2.setData(description2);
+                        } else {
+                            // Store the data temporarily for when the editor is initialized
+                            $(editDesc2Element).data('pending-content', description2);
+                            $('#editTaskDescription2').val(description2);
+                        }
 
-                editModal.show();
+                        // Set scheduled_at if available
+                        if (res.task.scheduled_at) {
+                            // Convert to datetime-local format (YYYY-MM-DDTHH:MM)
+                            const scheduledDate = new Date(res.task.scheduled_at);
+                            const formattedDate = scheduledDate.toISOString().slice(0, 16);
+                            $('#editScheduledAt').val(formattedDate);
+                        } else {
+                            $('#editScheduledAt').val('');
+                        }
+
+                        editModal.show();
+                    }
+                });
             });
 
             // Edit Task Form Submission
@@ -1110,55 +1168,36 @@
                 const id = $('#editTaskId').val();
                 const name = $('#editTaskName').val().trim();
 
-                // Save TinyMCE content first
-                if (typeof tinymce !== 'undefined') {
-                    tinymce.triggerSave();
-                }
-
-                // Get description - simplified approach
+                // Get description from TinyMCE if available, otherwise from textarea
                 let description = '';
                 const editTinyMCEInstance = tinymce.get('editTaskDescription');
-                if (editTinyMCEInstance) {
-                    description = editTinyMCEInstance.getContent();
+                if (editTinyMCEInstance && typeof editTinyMCEInstance.getContent === 'function') {
+                    try {
+                        editTinyMCEInstance.save();
+                        description = editTinyMCEInstance.getContent().trim();
+                    } catch (error) {
+                        console.error('Error getting TinyMCE content:', error);
+                        description = $('#editTaskDescription').val().trim();
+                    }
                 } else {
-                    description = $('#editTaskDescription').val();
+                    description = $('#editTaskDescription').val().trim();
                 }
-                description = description ? description.trim() : '';
 
-                // Get additional description
+                // Get second description from CKEditor5 if available, otherwise from textarea
                 let description2 = '';
-                if (editTaskEditor2) {
-                    description2 = editTaskEditor2.getData();
+                if (editTaskEditor2 && typeof editTaskEditor2.getData === 'function') {
+                    try {
+                        description2 = editTaskEditor2.getData().trim();
+                    } catch (error) {
+                        console.error('Error getting CKEditor5 content:', error);
+                        description2 = $('#editTaskDescription2').val().trim();
+                    }
                 } else {
-                    description2 = $('#editTaskDescription2').val();
-                }
-                description2 = description2 ? description2.trim() : '';
-
-                console.log('Data to submit:', {
-                    id,
-                    name,
-                    description: description.substring(0, 100),
-                    description2: description2.substring(0, 100)
-                });
-
-                // Simple validation
-                if (!name) {
-                    Swal.fire({
-                        icon: 'error',
-                        title: 'Error',
-                        text: 'Task name is required'
-                    });
-                    return;
+                    description2 = $('#editTaskDescription2').val().trim();
                 }
 
-                if (!description) {
-                    Swal.fire({
-                        icon: 'error',
-                        title: 'Error',
-                        text: 'Task description is required'
-                    });
-                    return;
-                }
+                // Get scheduled_at value
+                const scheduledAt = $('#editScheduledAt').val();
 
                 console.log('Validation passed, submitting...');
 
@@ -1167,7 +1206,8 @@
                         _token: token,
                         name: name,
                         description: description,
-                        description2: description2
+                        description2: description2,
+                        scheduled_at: scheduledAt
                     })
                     .done(function(res) {
                         console.log('Success response:', res);
@@ -1212,6 +1252,7 @@
                             } else {
                                 $('#editTaskDescription2').val('');
                             }
+                            $('#editScheduledAt').val('');
                         } else {
                             Swal.fire({
                                 icon: 'error',
@@ -1246,69 +1287,72 @@
             // View Task
             $(document).on('click', '.view-btn', function() {
                 const id = $(this).data('id');
-                const name = $(this).data('name');
-                const description = $(this).data('description');
-                const description2 = $(this).data('description2') || '';
-
-                $('#viewTaskName').text(name);
-
-                // If we have a description, show it, otherwise show no description message
-                if (description && description.trim() !== '') {
-                    $('#viewTaskDescription').html(fixImageUrls(description));
-                } else {
-                    $('#viewTaskDescription').html(
-                        '<p class="text-muted"><em>No description available</em></p>');
-                }
-
-                // Handle second description field
-                if (description2 && description2.trim() !== '') {
-                    $('#viewTaskDescription2').html(fixImageUrls(description2));
-                } else {
-                    $('#viewTaskDescription2').html(
-                        '<p class="text-muted"><em>No additional description</em></p>');
-                }
-
-                // Fetch and display images for the view modal
+                // Always fetch the latest task data from API to get scheduled_at and images
                 $.get(BASE_URL + '/api/tasks/' + id, function(res) {
-                    if (res.success && res.task.images && res.task.images.length > 0) {
-                        let imagesHtml = '';
-                        res.task.images.forEach(function(imgPath) {
-                            imagesHtml +=
-                                `<img src='${BASE_URL}/storage/${imgPath}' alt='Task Image' style='max-width:120px;max-height:120px;margin:4px;border-radius:6px;box-shadow:0 1px 4px rgba(0,0,0,0.08);cursor:pointer;' class='task-modal-image'>`;
-                        });
-                        $('#viewTaskImages').html(imagesHtml);
-                        $('#viewTaskImagesContainer').show();
-                    } else {
-                        $('#viewTaskImages').html('');
-                        $('#viewTaskImagesContainer').hide();
+                    if (res.success && res.task) {
+                        $('#viewTaskName').text(res.task.name);
+                        // Description
+                        if (res.task.description && res.task.description.trim() !== '') {
+                            $('#viewTaskDescription').html(fixImageUrls(res.task.description));
+                        } else {
+                            $('#viewTaskDescription').html(
+                                '<p class="text-muted"><em>No description available</em></p>');
+                        }
+                        // Additional Description
+                        if (res.task.description2 && res.task.description2.trim() !== '') {
+                            $('#viewTaskDescription2').html(fixImageUrls(res.task.description2));
+                        } else {
+                            $('#viewTaskDescription2').html(
+                                '<p class="text-muted"><em>No additional description</em></p>');
+                        }
+                        // Scheduled Meeting
+                        if (res.task.scheduled_at) {
+                            $('#viewTaskScheduled').text(formatDate(res.task.scheduled_at));
+                            $('#viewTaskScheduledContainer').show();
+                        } else {
+                            $('#viewTaskScheduled').text('');
+                            $('#viewTaskScheduledContainer').hide();
+                        }
+                        // Images
+                        if (res.task.images && res.task.images.length > 0) {
+                            let imagesHtml = '';
+                            res.task.images.forEach(function(imgPath) {
+                                imagesHtml +=
+                                    `<img src='${BASE_URL}/storage/${imgPath}' alt='Task Image' style='max-width:120px;max-height:120px;margin:4px;border-radius:6px;box-shadow:0 1px 4px rgba(0,0,0,0.08);cursor:pointer;' class='task-modal-image'>`;
+                            });
+                            $('#viewTaskImages').html(imagesHtml);
+                            $('#viewTaskImagesContainer').show();
+                        } else {
+                            $('#viewTaskImages').html('');
+                            $('#viewTaskImagesContainer').hide();
+                        }
+                        // Set Full Task View button href with base URL
+                        $('#fullTaskViewBtn').attr('href', BASE_URL + '/tasks/' + id +
+                            '/full-view');
+                        viewModal.show();
+                        // Add image click handlers for zoom functionality after modal is shown
+                        setTimeout(function() {
+                            $('#viewTaskDescription img').off('click').on('click', function(
+                                e) {
+                                e.stopPropagation();
+                                const imgSrc = $(this).attr('src');
+                                $('#zoomedImage').attr('src', imgSrc);
+                                $('#imageZoomModal').fadeIn(200);
+                            });
+                            // Handle broken images
+                            $('#viewTaskDescription img').off('error').on('error',
+                                function() {
+                                    $(this).attr('alt', 'Image not found').css({
+                                        'background-color': '#f8f9fa',
+                                        'border': '1px dashed #dee2e6',
+                                        'padding': '20px',
+                                        'text-align': 'center',
+                                        'color': '#6c757d'
+                                    });
+                                });
+                        }, 300);
                     }
                 });
-
-                viewModal.show();
-
-                // Add image click handlers for zoom functionality after modal is shown
-                setTimeout(function() {
-                    $('#viewTaskDescription img').off('click').on('click', function(e) {
-                        e.stopPropagation();
-                        const imgSrc = $(this).attr('src');
-                        $('#zoomedImage').attr('src', imgSrc);
-                        $('#imageZoomModal').fadeIn(200);
-                    });
-
-                    // Handle broken images
-                    $('#viewTaskDescription img').off('error').on('error', function() {
-                        $(this).attr('alt', 'Image not found').css({
-                            'background-color': '#f8f9fa',
-                            'border': '1px dashed #dee2e6',
-                            'padding': '20px',
-                            'text-align': 'center',
-                            'color': '#6c757d'
-                        });
-                    });
-                }, 300);
-
-                // Set Full Task View button href with base URL
-                $('#fullTaskViewBtn').attr('href', BASE_URL + '/tasks/' + id + '/full-view');
             });
 
             // Image zoom modal close functionality

@@ -7,6 +7,7 @@ use App\Http\Controllers\AdminAuthController;
 use App\Http\Controllers\Admin\AdminController;
 use App\Http\Controllers\AdminUserController;
 use Illuminate\Http\Request;
+use App\Http\Controllers\GoogleOAuthController;
 
 // Redirect root to register page
 Route::get('/', fn () => redirect()->route('register'));
@@ -82,4 +83,9 @@ Route::prefix('admin')->group(function () {
         // Admin API route for fetching task data
         Route::get('api/tasks/{task}', [AdminController::class, 'getTaskData'])->name('admin.api.tasks.show');
     });
+
 });
+
+// Google OAuth integration
+    Route::get('/google/oauth', [GoogleOAuthController::class, 'redirect'])->name('google.oauth.redirect');
+    Route::get('/google/callback', [GoogleOAuthController::class, 'callback'])->name('google.oauth.callback');
