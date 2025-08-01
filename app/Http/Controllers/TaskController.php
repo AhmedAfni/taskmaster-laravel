@@ -7,6 +7,10 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Storage;
 
+use Google_Client;
+use Google_Service_Calendar;
+use Google_Service_Calendar_Event;
+
 class TaskController extends Controller
 {
     // Display a listing of the tasks for the authenticated user.
@@ -36,15 +40,78 @@ class TaskController extends Controller
                 'images.*' => 'image|mimes:jpeg,png,jpg,gif,webp|max:10240',
             ]);
 
-            $task = Task::create([
-                'name' => $request->name,
-                'description' => $request->description,
-                'description2' => $request->description2,
-                'user_id' => Auth::id(),
-                'completed' => false,
-                'completed_at' => null,
-                'scheduled_at' => $request->scheduled_at,
-            ]);
+            $task = new Task();
+            $task->name = $request->name;
+            $task->description = $request->description;
+            $task->description2 = $request->description2;
+            $task->user_id = Auth::id();
+            $task->completed = false;
+            $task->completed_at = null;
+            $task->scheduled_at = $request->scheduled_at;
+
+            // Google Calendar event creation
+            if ($request->scheduled_at && auth()->user()->google_access_token) {
+                $client = new Google_Client();
+                $client->setAuthConfig(storage_path('app/credentials.json'));
+                $client->setAccessToken(auth()->user()->google_access_token);
+
+                // Refresh token if needed
+                if ($client->isAccessTokenExpired() && auth()->user()->google_refresh_token) {
+                    $newToken = $client->fetchAccessTokenWithRefreshToken(auth()->user()->google_refresh_token);
+                    $user = auth()->user();
+                    if (isset($newToken['access_token'])) {
+                        $user->google_access_token = $newToken['access_token'];
+                        if (isset($newToken['refresh_token'])) {
+                            $user->google_refresh_token = $newToken['refresh_token'];
+                        }
+                        $user->google_token_expires = now()->addSeconds($newToken['expires_in'] ?? 3600);
+                        $user->save();
+                        $client->setAccessToken($newToken['access_token']);
+                    }
+                }
+
+                // Use Carbon to handle timezone correctly
+                $start = \Carbon\Carbon::parse($request->scheduled_at, 'Asia/Colombo')->setTimezone('Asia/Colombo');
+                $end = (clone $start)->addHour();
+
+                $service = new Google_Service_Calendar($client);
+                $event = new Google_Service_Calendar_Event([
+                    'summary' => $task->name,
+                    'description' => $task->description,
+                    'start' => [
+                        'dateTime' => $start->toIso8601String(),
+                        'timeZone' => 'Asia/Colombo',
+                    ],
+                    'end' => [
+                        'dateTime' => $end->toIso8601String(),
+                        'timeZone' => 'Asia/Colombo',
+                    ],
+                    'conferenceData' => [
+                        'createRequest' => [
+                            'conferenceSolutionKey' => [
+                                'type' => 'hangoutsMeet'
+                            ],
+                            'requestId' => uniqid()
+                        ]
+                    ]
+                ]);
+
+                $calendarId = 'primary';
+                $createdEvent = $service->events->insert($calendarId, $event, ['conferenceDataVersion' => 1]);
+                $task->google_event_link = $createdEvent->htmlLink;
+
+                // Optionally, you can also save the Meet link directly:
+                if (isset($createdEvent->conferenceData->entryPoints)) {
+                    foreach ($createdEvent->conferenceData->entryPoints as $entryPoint) {
+                        if ($entryPoint->entryPointType === 'video') {
+                            $task->google_meet_link = $entryPoint->uri;
+                            break;
+                        }
+                    }
+                }
+            }
+
+            $task->save();
 
             // Handle multiple images
             if ($request->hasFile('images')) {
@@ -67,6 +134,8 @@ class TaskController extends Controller
                         'completed' => $task->completed,
                         'completed_at' => $task->completed_at,
                         'images' => $task->images->pluck('image_path'),
+                        'google_event_link' => $task->google_event_link ?? null,
+                        'google_meet_link' => $task->google_meet_link ?? null,
                     ]
                 ]);
             }

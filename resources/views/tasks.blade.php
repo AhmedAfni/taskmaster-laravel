@@ -300,6 +300,19 @@
                                 <button class="btn btn-sm btn-outline-danger delete-btn" data-id="{{ $task->id }}">
                                     <i class="bi bi-trash3"></i>
                                 </button>
+                                @if ($task->google_event_link)
+                                    <a href="{{ $task->google_event_link }}" target="_blank"
+                                        class="btn btn-outline-success btn-sm ms-2">
+                                        <i class="bi bi-calendar-event"></i> View in Google Calendar
+                                    </a>
+                                @endif
+
+                                @if ($task->google_meet_link)
+                                    <a href="{{ $task->google_meet_link }}" target="_blank"
+                                        class="btn btn-success btn-sm ms-2">
+                                        Join Google Meet
+                                    </a>
+                                @endif
                             </div>
                         </li>
                     @endforeach
