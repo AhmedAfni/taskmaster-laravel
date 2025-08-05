@@ -308,8 +308,8 @@
                                 @endif
 
                                 @if ($task->google_meet_link)
-                                    <a href="{{ $task->google_meet_link }}" target="_blank"
-                                        class="btn btn-success btn-sm ms-2">
+                                    <a href="{{ $task->google_meet_link }}"
+                                        class="btn btn-success btn-sm ms-2 join-google-meet-link">
                                         Join Google Meet
                                     </a>
                                 @endif
@@ -317,8 +317,16 @@
                         </li>
                     @endforeach
                 </ul>
+                <script>
+                    $(document).on('click', '.join-google-meet-link', function(e) {
+                        e.preventDefault();
+                        const url = $(this).attr('href');
+                        window.open(url, 'GoogleMeetPopup', 'width=900,height=700,menubar=no,toolbar=no,location=no,status=no');
+                    });
+                </script>
             </div>
         </div>
+    </div>
     </div>
 
     <!-- Add Task Modal -->

@@ -9,7 +9,7 @@ class Task extends Model
 {
     // The Task model represents a task in the application.
     protected $fillable = [
-        'name', 'description', 'description2', 'completed', 'user_id', 'completed_at', 'assigned_by_admin_id', 'image', 'scheduled_at'
+        'name', 'description', 'description2', 'completed', 'user_id', 'completed_at', 'assigned_by_admin_id', 'image', 'scheduled_at', 'google_event_link', 'google_meet_link'
     ];
     // The fillable property specifies which attributes can be assigned.
 
