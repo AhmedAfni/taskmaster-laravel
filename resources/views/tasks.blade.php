@@ -181,6 +181,57 @@
             color: #0a58ca;
             text-decoration: underline;
         }
+
+        #jitsiMeetSideEmbed {
+            position: fixed;
+            top: 0;
+            right: 0;
+            z-index: 1055;
+            background: #fff;
+            box-shadow: -2px 0 10px rgba(0, 0, 0, 0.12);
+            border-left: 1px solid #dee2e6;
+            display: none;
+            transition: width 0.3s, height 0.3s;
+        }
+
+        #jitsiMeetSideEmbed.jitsi-side-view {
+            width: 420px;
+            height: 70vh;
+            top: 15vh;
+            border-radius: 12px 0 0 12px;
+        }
+
+        #jitsiMeetSideEmbed.jitsi-full-view {
+            width: 100vw;
+            height: 100vh;
+            top: 0;
+            border-radius: 0;
+        }
+
+        #jitsiMeetSideEmbed .jitsi-header {
+            background: #f8f9fa;
+            border-bottom: 1px solid #dee2e6;
+            padding: 0.75rem 1.25rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        #jitsiMeetSideIframe {
+            width: 100%;
+            height: calc(100% - 48px);
+            border: 0;
+            border-radius: 0 0 12px 0;
+            background: #000;
+        }
+
+        @media (max-width: 600px) {
+            #jitsiMeetSideEmbed.jitsi-side-view {
+                width: 100vw;
+                left: 0;
+                border-radius: 0;
+            }
+        }
     </style>
 </head>
 
@@ -313,19 +364,87 @@
                                         Join Google Meet
                                     </a>
                                 @endif
+
+                                @if ($task->jitsi_meeting_link)
+                                    <button type="button" class="btn btn-warning btn-sm ms-2 join-jitsi-meet-link"
+                                        data-jitsi-link="{{ $task->jitsi_meeting_link }}">
+                                        Join Jitsi Meeting
+                                    </button>
+                                @endif
                             </div>
                         </li>
                     @endforeach
                 </ul>
-                <script>
-                    $(document).on('click', '.join-google-meet-link', function(e) {
-                        e.preventDefault();
-                        const url = $(this).attr('href');
-                        window.open(url, 'GoogleMeetPopup', 'width=900,height=700,menubar=no,toolbar=no,location=no,status=no');
-                    });
-                </script>
             </div>
+            <script>
+                $(document).on('click', '.join-google-meet-link', function(e) {
+                    e.preventDefault();
+                    const url = $(this).attr('href');
+                    window.open(url, 'GoogleMeetPopup', 'width=900,height=700,menubar=no,toolbar=no,location=no,status=no');
+                });
+                // Jitsi Meet embed in right-side panel logic
+                $(document).on('click', '.join-jitsi-meet-link', function(e) {
+                    e.preventDefault();
+                    const jitsiUrl = $(this).data('jitsi-link');
+                    if (!jitsiUrl) return;
+                    // Show the Jitsi panel in minimized (side) mode
+                    $('#jitsiMeetSideEmbed').show();
+                    $('#jitsiMeetSideEmbed').removeClass('jitsi-full-view').addClass('jitsi-side-view');
+                    $('#jitsiMeetSideIframe').attr('src', jitsiUrl +
+                        '#userInfo.displayName={{ Auth::user()->name ?? '' }}');
+                    // Optionally, dim or disable main content interaction
+                });
+                // Toggle to full view
+                $(document).on('click', '#expandJitsiSideEmbed', function() {
+                    $('#jitsiMeetSideEmbed').removeClass('jitsi-side-view').addClass('jitsi-full-view');
+                });
+                // Toggle back to side view
+                $(document).on('click', '#minimizeJitsiSideEmbed', function() {
+                    $('#jitsiMeetSideEmbed').removeClass('jitsi-full-view').addClass('jitsi-side-view');
+                });
+                // Close Jitsi panel
+                $(document).on('click', '#closeJitsiSideEmbed', function() {
+                    $('#jitsiMeetSideEmbed').hide();
+                    $('#jitsiMeetSideIframe').attr('src', '');
+                });
+            </script>
+
+            <div id="jitsiMeetSideEmbed" class="jitsi-side-view" style="display:none;">
+                <div class="jitsi-header">
+                    <span><strong>Jitsi Meeting</strong></span>
+                    <div>
+                        <button id="expandJitsiSideEmbed" class="btn btn-sm btn-outline-primary me-1"
+                            title="Full View"><i class="bi bi-arrows-fullscreen"></i></button>
+                        <button id="minimizeJitsiSideEmbed" class="btn btn-sm btn-outline-secondary me-1"
+                            title="Minimize" style="display:none;"><i class="bi bi-arrow-bar-right"></i></button>
+                        <button id="closeJitsiSideEmbed" class="btn btn-sm btn-outline-danger"
+                            title="Close">&times;</button>
+                    </div>
+                </div>
+                <iframe id="jitsiMeetSideIframe" src=""
+                    allow="camera; microphone; fullscreen; display-capture"></iframe>
+            </div>
+            <script>
+                // Show/hide expand/minimize buttons based on view
+                function updateJitsiButtons() {
+                    if ($('#jitsiMeetSideEmbed').hasClass('jitsi-full-view')) {
+                        $('#expandJitsiSideEmbed').hide();
+                        $('#minimizeJitsiSideEmbed').show();
+                    } else {
+                        $('#expandJitsiSideEmbed').show();
+                        $('#minimizeJitsiSideEmbed').hide();
+                    }
+                }
+                $(document).on('click', '#expandJitsiSideEmbed, #minimizeJitsiSideEmbed', updateJitsiButtons);
+                $(document).on('click', '.join-jitsi-meet-link', updateJitsiButtons);
+                // Also update on close
+                $(document).on('click', '#closeJitsiSideEmbed', function() {
+                    $('#expandJitsiSideEmbed').show();
+                    $('#minimizeJitsiSideEmbed').hide();
+                });
+            </script>
         </div>
+    </div>
     </div>
     </div>
 
@@ -358,8 +477,13 @@
                             multiple>
                     </div>
                     <div class="mb-3">
-                        <label for="scheduledAt" class="form-label">Schedule Meeting Date & Time</label>
+                        <label for="scheduledAt" class="form-label">Schedule Meeting Date & Time (Google Meet)</label>
                         <input type="datetime-local" class="form-control" id="scheduledAt" name="scheduled_at">
+                    </div>
+                    <div class="mb-3">
+                        <label for="jitsiScheduledAt" class="form-label">Schedule Jitsi Meeting Date & Time</label>
+                        <input type="datetime-local" class="form-control" id="jitsiScheduledAt"
+                            name="jitsi_scheduled_at">
                     </div>
                 </div>
                 <div class="modal-footer">
@@ -1012,6 +1136,8 @@
 
                 // Get scheduled_at value
                 const scheduledAt = $('#scheduledAt').val();
+                // Get jitsi_scheduled_at value
+                const jitsiScheduledAt = $('#jitsiScheduledAt').val();
 
                 // Prepare FormData for AJAX
                 const formData = new FormData();
@@ -1019,6 +1145,7 @@
                 formData.append('description', description);
                 formData.append('description2', description2);
                 formData.append('scheduled_at', scheduledAt);
+                formData.append('jitsi_scheduled_at', jitsiScheduledAt);
                 formData.append('_token', token);
 
                 // Append image if selected

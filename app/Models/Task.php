@@ -9,7 +9,7 @@ class Task extends Model
 {
     // The Task model represents a task in the application.
     protected $fillable = [
-        'name', 'description', 'description2', 'completed', 'user_id', 'completed_at', 'assigned_by_admin_id', 'image', 'scheduled_at', 'google_event_link', 'google_meet_link'
+        'name', 'description', 'description2', 'completed', 'user_id', 'completed_at', 'assigned_by_admin_id', 'image', 'scheduled_at', 'google_event_link', 'google_meet_link', 'jitsi_meeting_link', 'jitsi_scheduled_at'
     ];
     // The fillable property specifies which attributes can be assigned.
 
@@ -18,6 +18,10 @@ class Task extends Model
         'updated_at' => 'datetime', // The updated_at attribute is cast to a datetime instance.
         'completed_at' => 'datetime', // The completed_at attribute is cast to a datetime instance.
         'scheduled_at' => 'datetime', // The scheduled_at attribute is cast to a datetime instance.
+    ];
+
+    protected $dates = [
+        'jitsi_scheduled_at',
     ];
 
     public function user()

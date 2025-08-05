@@ -31,11 +31,13 @@ class TaskController extends Controller
     public function store(Request $request)
     {
         try {
+
             $request->validate([
                 'name' => 'required|string|max:255',
                 'description' => 'required|string|max:16777215',
                 'description2' => 'nullable|string|max:16777215',
                 'scheduled_at' => 'nullable|date',
+                'jitsi_scheduled_at' => 'nullable|date',
                 'images' => 'nullable',
                 'images.*' => 'image|mimes:jpeg,png,jpg,gif,webp|max:10240',
             ]);
@@ -47,7 +49,18 @@ class TaskController extends Controller
             $task->user_id = Auth::id();
             $task->completed = false;
             $task->completed_at = null;
+
             $task->scheduled_at = $request->scheduled_at;
+            $task->jitsi_scheduled_at = $request->jitsi_scheduled_at;
+
+            // Jitsi meeting link generation
+            if ($request->jitsi_scheduled_at) {
+                // Generate a unique Jitsi room name (e.g., task-<taskid>-<timestamp>)
+                $roomName = 'task-' . uniqid() . '-' . time();
+                $jitsiBaseUrl = 'https://meet.jit.si/';
+                $jitsiMeetingLink = $jitsiBaseUrl . $roomName;
+                $task->jitsi_meeting_link = $jitsiMeetingLink;
+            }
 
             // Google Calendar event creation
             if ($request->scheduled_at && auth()->user()->google_access_token) {
@@ -111,6 +124,7 @@ class TaskController extends Controller
                 }
             }
 
+
             $task->save();
 
             // Handle multiple images
@@ -121,6 +135,7 @@ class TaskController extends Controller
                     $task->images()->create(['image_path' => $imagePath]);
                 }
             }
+
 
             if ($request->expectsJson()) {
                 return response()->json([
@@ -136,6 +151,8 @@ class TaskController extends Controller
                         'images' => $task->images->pluck('image_path'),
                         'google_event_link' => $task->google_event_link ?? null,
                         'google_meet_link' => $task->google_meet_link ?? null,
+                        'jitsi_meeting_link' => $task->jitsi_meeting_link ?? null,
+                        'jitsi_scheduled_at' => $task->jitsi_scheduled_at ?? null,
                     ]
                 ]);
             }
