@@ -75,7 +75,7 @@
             cursor: pointer;
             transition: transform 0.2s ease;
         }
-
+        
         #viewTaskDescription img:hover {
             transform: scale(1.02);
         }
@@ -194,6 +194,10 @@
             transition: width 0.3s, height 0.3s;
         }
 
+        #jitsiMeetSideEmbed .jitsi-header {
+            cursor: move;
+        }
+
         #jitsiMeetSideEmbed.jitsi-side-view {
             width: 420px;
             height: 70vh;
@@ -215,6 +219,16 @@
             display: flex;
             justify-content: space-between;
             align-items: center;
+            cursor: move;
+            user-select: none;
+        }
+
+        #jitsiMeetSideEmbed.jitsi-side-view .jitsi-header::before {
+            content: "⋮⋮";
+            color: #6c757d;
+            font-weight: bold;
+            margin-right: 8px;
+            letter-spacing: 2px;
         }
 
         #jitsiMeetSideIframe {
@@ -441,6 +455,85 @@
                 $(document).on('click', '#closeJitsiSideEmbed', function() {
                     $('#expandJitsiSideEmbed').show();
                     $('#minimizeJitsiSideEmbed').hide();
+                });
+
+                // Drag and drop functionality for Jitsi window
+                let isDragging = false;
+                let dragStartX, dragStartY, startLeft, startTop;
+
+                $(document).on('mousedown', '#jitsiMeetSideEmbed .jitsi-header', function(e) {
+                    // Only allow dragging in side view mode, not full view
+                    if ($('#jitsiMeetSideEmbed').hasClass('jitsi-full-view')) {
+                        return;
+                    }
+
+                    // Don't drag if clicking on buttons
+                    if ($(e.target).is('button') || $(e.target).is('i')) {
+                        return;
+                    }
+
+                    isDragging = true;
+                    const $jitsiWindow = $('#jitsiMeetSideEmbed');
+
+                    dragStartX = e.clientX;
+                    dragStartY = e.clientY;
+                    startLeft = parseInt($jitsiWindow.css('left')) || (window.innerWidth - $jitsiWindow.outerWidth());
+                    startTop = parseInt($jitsiWindow.css('top')) || 0;
+
+                    $jitsiWindow.css('transition', 'none');
+                    $(document.body).css('user-select', 'none');
+                    e.preventDefault();
+                });
+
+                $(document).on('mousemove', function(e) {
+                    if (!isDragging) return;
+
+                    const $jitsiWindow = $('#jitsiMeetSideEmbed');
+                    const deltaX = e.clientX - dragStartX;
+                    const deltaY = e.clientY - dragStartY;
+
+                    let newLeft = startLeft + deltaX;
+                    let newTop = startTop + deltaY;
+
+                    // Constrain to viewport
+                    const windowWidth = $jitsiWindow.outerWidth();
+                    const windowHeight = $jitsiWindow.outerHeight();
+                    const viewportWidth = window.innerWidth;
+                    const viewportHeight = window.innerHeight;
+
+                    newLeft = Math.max(0, Math.min(newLeft, viewportWidth - windowWidth));
+                    newTop = Math.max(0, Math.min(newTop, viewportHeight - windowHeight));
+
+                    $jitsiWindow.css({
+                        left: newLeft + 'px',
+                        top: newTop + 'px',
+                        right: 'auto'
+                    });
+                });
+
+                $(document).on('mouseup', function() {
+                    if (isDragging) {
+                        isDragging = false;
+                        $('#jitsiMeetSideEmbed').css('transition', 'width 0.3s, height 0.3s');
+                        $(document.body).css('user-select', '');
+                    }
+                });
+
+                // Reset position when toggling between views
+                $(document).on('click', '#expandJitsiSideEmbed', function() {
+                    $('#jitsiMeetSideEmbed').css({
+                        left: '',
+                        top: '',
+                        right: '0'
+                    });
+                });
+
+                $(document).on('click', '#minimizeJitsiSideEmbed', function() {
+                    $('#jitsiMeetSideEmbed').css({
+                        left: '',
+                        top: '15vh',
+                        right: '0'
+                    });
                 });
             </script>
         </div>
