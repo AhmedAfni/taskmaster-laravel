@@ -11,9 +11,11 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::table('tasks', function (Blueprint $table) {
-            $table->dropColumn('image_paths');
-        });
+        if (Schema::hasColumn('tasks', 'image_paths')) {
+            Schema::table('tasks', function (Blueprint $table) {
+                $table->dropColumn('image_paths');
+            });
+        }
     }
 
     /**
