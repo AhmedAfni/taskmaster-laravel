@@ -8,6 +8,7 @@ use App\Http\Controllers\Admin\AdminController;
 use App\Http\Controllers\AdminUserController;
 use Illuminate\Http\Request;
 use App\Http\Controllers\GoogleOAuthController;
+use App\Http\Controllers\Admin\ProductController;
 
 // Redirect root to register page
 Route::get('/', fn () => redirect()->route('register'));
@@ -82,6 +83,18 @@ Route::prefix('admin')->group(function () {
 
         // Admin API route for fetching task data
         Route::get('api/tasks/{task}', [AdminController::class, 'getTaskData'])->name('admin.api.tasks.show');
+
+        // Product management
+        Route::post('admin/products/assign', [ProductController::class, 'assignToUser'])->name('admin.products.assign');
+
+        Route::middleware(['auth'])->group(function () {
+    Route::get('/my-products', [ProductController::class, 'userProducts'])->name('user.products');
+    // For deleting a product
+Route::delete('/products/{product}', [ProductController::class, 'destroy'])->name('products.destroy');
+
+// For paying for a product (you can adjust the controller/method as needed)
+Route::get('/products/{product}/pay', [ProductController::class, 'pay'])->name('products.pay');
+});
     });
 
 });

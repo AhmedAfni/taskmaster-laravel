@@ -75,7 +75,7 @@
             cursor: pointer;
             transition: transform 0.2s ease;
         }
-        
+
         #viewTaskDescription img:hover {
             transform: scale(1.02);
         }
@@ -389,6 +389,45 @@
                         </li>
                     @endforeach
                 </ul>
+
+                <!-- Product List -->
+                <div class="mt-5">
+                    <h4 class="mb-3 text-center">My Products</h4>
+                    <ul class="list-group">
+                        @forelse($products as $product)
+                            <li class="list-group-item d-flex align-items-center justify-content-between">
+                                <div class="d-flex align-items-center">
+                                    @if ($product->image)
+                                        <img src="{{ asset('storage/' . $product->image) }}" alt="Product Image"
+                                            style="width:60px;height:60px;object-fit:cover;border-radius:8px;margin-right:16px;">
+                                    @endif
+                                    <div>
+                                        <div><strong>Price:</strong> ${{ $product->price }}</div>
+                                        <div><strong>Size:</strong> {{ $product->size }}</div>
+                                    </div>
+                                </div>
+                                <div>
+                                    <!-- Pay Button -->
+                                    <a href="{{ route('products.pay', $product->id) }}"
+                                        class="btn btn-success btn-sm me-2">
+                                        <i class="bi bi-credit-card"></i> Pay
+                                    </a>
+                                    <!-- Delete Button -->
+                                    <form action="{{ route('products.destroy', $product->id) }}" method="POST"
+                                        class="d-inline" onsubmit="return confirm('Delete this product?');">
+                                        @csrf
+                                        @method('DELETE')
+                                        <button type="submit" class="btn btn-danger btn-sm">
+                                            <i class="bi bi-trash"></i> Delete
+                                        </button>
+                                    </form>
+                                </div>
+                            </li>
+                        @empty
+                            <li class="list-group-item text-center text-muted">No products found.</li>
+                        @endforelse
+                    </ul>
+                </div>
             </div>
             <script>
                 $(document).on('click', '.join-google-meet-link', function(e) {

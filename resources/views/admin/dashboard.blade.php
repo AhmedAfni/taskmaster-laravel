@@ -19,6 +19,14 @@
         </button>
     </div>
 
+    {{-- Add Product to User Section --}}
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h4 class="fw-semibold mb-0">Add Product to User</h4>
+        <button class="btn btn-success" data-bs-toggle="modal" data-bs-target="#addProductToUserModal">
+            <i class="bi bi-box-seam"></i> Add Product to User
+        </button>
+    </div>
+
     {{-- Statistics Cards Row --}}
     <div class="row g-4 mb-5">
         {{-- Total Users Card --}}
@@ -348,6 +356,57 @@
     {{-- Modal: Image Zoom (for rich text content images) --}}
     <div class="image-zoom-modal" id="imageZoomModal">
         <img src="" alt="Zoomed Image" id="zoomedImage">
+    </div>
+
+    <!-- Modal: Add Product to User -->
+    <div class="modal fade" id="addProductToUserModal" tabindex="-1" aria-labelledby="addProductToUserModalLabel"
+        aria-hidden="true">
+        <div class="modal-dialog">
+            <form method="POST" action="{{ route('admin.products.assign') }}" enctype="multipart/form-data"
+                id="addProductToUserForm">
+                @csrf
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="addProductToUserModalLabel">Add Product to User</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body">
+                        <!-- User Selection -->
+                        <div class="mb-3">
+                            <label for="product_user_id" class="form-label">Select User</label>
+                            <select name="user_id" id="product_user_id" class="form-select" required>
+                                <option value="" disabled selected>Choose a user...</option>
+                                @foreach ($users as $user)
+                                    <option value="{{ $user->id }}">{{ $user->name }} ({{ $user->email }})
+                                    </option>
+                                @endforeach
+                            </select>
+                        </div>
+                        <!-- Product Image -->
+                        <div class="mb-3">
+                            <label for="product_image" class="form-label">Product Image</label>
+                            <input type="file" class="form-control" name="image" id="product_image"
+                                accept="image/*" required>
+                        </div>
+                        <!-- Product Price -->
+                        <div class="mb-3">
+                            <label for="product_price" class="form-label">Price</label>
+                            <input type="number" class="form-control" name="price" id="product_price" step="0.01"
+                                min="0" required>
+                        </div>
+                        <!-- Product Size -->
+                        <div class="mb-3">
+                            <label for="product_size" class="form-label">Size</label>
+                            <input type="text" class="form-control" name="size" id="product_size" required>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+                        <button type="submit" class="btn btn-success">Add Product</button>
+                    </div>
+                </div>
+            </form>
+        </div>
     </div>
 @endsection
 

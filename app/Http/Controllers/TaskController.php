@@ -6,7 +6,7 @@ use App\Models\Task;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Storage;
-
+use App\Models\Product;
 use Google_Client;
 use Google_Service_Calendar;
 use Google_Service_Calendar_Event;
@@ -24,7 +24,9 @@ class TaskController extends Controller
         $completedTasks = $tasks->where('completed', true)->count(); // Count completed tasks for the user
         $pendingTasks = $tasks->where('completed', false)->count(); // Count pending tasks for the user
 
-        return view('tasks', compact('tasks', 'totalTasks', 'completedTasks', 'pendingTasks')); // Return the tasks view with the tasks and counts
+        $products = Product::where('user_id', auth()->id())->get();
+
+        return view('tasks', compact('tasks', 'totalTasks', 'completedTasks', 'pendingTasks', 'products')); // Return the tasks view with the tasks and counts
     }
 
     // Store a new task for the authenticated user
