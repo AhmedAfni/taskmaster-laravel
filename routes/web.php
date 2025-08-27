@@ -86,19 +86,25 @@ Route::prefix('admin')->group(function () {
 
         // Product management
         Route::post('admin/products/assign', [ProductController::class, 'assignToUser'])->name('admin.products.assign');
-
-        Route::middleware(['auth'])->group(function () {
-    Route::get('/my-products', [ProductController::class, 'userProducts'])->name('user.products');
-    // For deleting a product
-Route::delete('/products/{product}', [ProductController::class, 'destroy'])->name('products.destroy');
-
-// For paying for a product (you can adjust the controller/method as needed)
-Route::get('/products/{product}/pay', [ProductController::class, 'pay'])->name('products.pay');
-});
     });
+});
 
+// User product routes
+Route::middleware('auth')->group(function () {
+    Route::get('/my-products', [ProductController::class, 'userProducts'])->name('user.products');
+    Route::delete('/products/{product}', [ProductController::class, 'destroy'])->name('products.destroy');
+    Route::get('/products/{product}/pay', [ProductController::class, 'pay'])->name('products.pay');
+});
+
+// Cybersource payment response route (must be outside middleware groups)
+Route::match(['get', 'post'], '/payment/response', [ProductController::class, 'paymentResponse'])
+    ->name('payment.response');
+
+// Admin product assign
+Route::prefix('admin')->middleware('auth:admin')->group(function () {
+    Route::post('products/assign', [ProductController::class, 'assignToUser'])->name('admin.products.assign');
 });
 
 // Google OAuth integration
-    Route::get('/google/oauth', [GoogleOAuthController::class, 'redirect'])->name('google.oauth.redirect');
-    Route::get('/google/callback', [GoogleOAuthController::class, 'callback'])->name('google.oauth.callback');
+Route::get('/google/oauth', [GoogleOAuthController::class, 'redirect'])->name('google.oauth.redirect');
+Route::get('/google/callback', [GoogleOAuthController::class, 'callback'])->name('google.oauth.callback');
